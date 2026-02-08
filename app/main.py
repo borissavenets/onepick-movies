@@ -9,7 +9,7 @@ import uvicorn
 from aiogram import Dispatcher
 from aiogram.types import Update
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
 from app.config import config
@@ -456,6 +456,298 @@ async def trigger_daily_metrics(
             status_code=500,
             detail=f"Metrics computation failed: {str(e)[:200]}",
         )
+
+
+@app.get("/admin/dashboard", response_class=HTMLResponse)
+async def admin_dashboard(token: str = "") -> HTMLResponse:
+    """Serve the admin dashboard HTML page.
+
+    The page itself is unprotected static HTML.
+    All data fetches use the token passed via query param.
+    """
+    return HTMLResponse(content=_DASHBOARD_HTML.replace("__TOKEN__", token))
+
+
+_DASHBOARD_HTML = """\
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FramePick — Панель керування</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0f1117;--surface:#1a1d27;--surface2:#242733;--border:#2e3140;
+--text:#e1e4ed;--text2:#9399ad;--accent:#6c8cff;--accent2:#4ecdc4;
+--green:#2ecc71;--yellow:#f39c12;--red:#e74c3c;--orange:#e67e22}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+background:var(--bg);color:var(--text);line-height:1.5;padding:16px 24px}
+h1{font-size:1.5rem;font-weight:700;margin-bottom:4px}
+.header{display:flex;justify-content:space-between;align-items:center;
+margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.header-left{display:flex;align-items:center;gap:12px}
+.status{font-size:.8rem;color:var(--text2)}
+.status .dot{display:inline-block;width:8px;height:8px;border-radius:50%;
+background:var(--green);margin-right:4px;vertical-align:middle}
+.section{margin-bottom:24px}
+.section-title{font-size:1rem;font-weight:600;color:var(--text2);
+margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;font-size:.8rem}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+padding:14px 16px;transition:border-color .2s}
+.card:hover{border-color:var(--accent)}
+.card .label{font-size:.75rem;color:var(--text2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px}
+.card .value{font-size:1.5rem;font-weight:700;color:var(--text)}
+.card .value.accent{color:var(--accent)}
+.card .value.green{color:var(--green)}
+.card .value.yellow{color:var(--yellow)}
+.card .value.red{color:var(--red)}
+.card .sub{font-size:.7rem;color:var(--text2);margin-top:2px}
+table{width:100%;border-collapse:collapse;background:var(--surface);
+border-radius:10px;overflow:hidden;border:1px solid var(--border)}
+th{background:var(--surface2);font-size:.7rem;text-transform:uppercase;
+letter-spacing:.5px;color:var(--text2);padding:10px 12px;text-align:left;font-weight:600}
+td{padding:8px 12px;border-top:1px solid var(--border);font-size:.85rem}
+tr:hover td{background:var(--surface2)}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.7rem;
+font-weight:600;text-transform:uppercase}
+.badge-critical{background:rgba(231,76,60,.15);color:var(--red)}
+.badge-warning{background:rgba(243,156,18,.15);color:var(--yellow)}
+.badge-info{background:rgba(108,140,255,.15);color:var(--accent)}
+.badge-resolved{background:rgba(46,204,113,.15);color:var(--green)}
+.badge-open{background:rgba(231,76,60,.15);color:var(--red)}
+.error-banner{background:rgba(231,76,60,.1);border:1px solid var(--red);
+border-radius:8px;padding:10px 14px;color:var(--red);font-size:.85rem;margin-bottom:16px;display:none}
+.empty{color:var(--text2);font-style:italic;padding:20px;text-align:center}
+.refresh-btn{background:var(--surface);border:1px solid var(--border);color:var(--text2);
+padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.8rem;transition:all .2s}
+.refresh-btn:hover{border-color:var(--accent);color:var(--accent)}
+@media(max-width:768px){body{padding:10px 12px}.cards{grid-template-columns:1fr 1fr}
+table{font-size:.75rem}th,td{padding:6px 8px}}
+</style>
+</head>
+<body>
+<div class="header">
+ <div class="header-left">
+  <h1>FramePick</h1>
+  <span class="status"><span class="dot"></span>Панель керування</span>
+ </div>
+ <div>
+  <span class="status" id="last-update"></span>
+  <button class="refresh-btn" onclick="loadAll()">Оновити</button>
+ </div>
+</div>
+<div class="error-banner" id="error-banner"></div>
+
+<div class="section" id="s-system">
+ <div class="section-title">Система</div>
+ <div class="cards" id="system-cards"></div>
+</div>
+
+<div class="section" id="s-bot">
+ <div class="section-title">Бот — метрики</div>
+ <div class="cards" id="bot-cards"></div>
+</div>
+
+<div class="section" id="s-channel">
+ <div class="section-title">Канал — метрики</div>
+ <div class="cards" id="channel-cards"></div>
+</div>
+
+<div class="section" id="s-slo">
+ <div class="section-title">TTFR SLO</div>
+ <div class="cards" id="slo-cards"></div>
+</div>
+
+<div class="section" id="s-posts">
+ <div class="section-title">Останні пости</div>
+ <div id="posts-table"></div>
+</div>
+
+<div class="section" id="s-alerts">
+ <div class="section-title">Сповіщення</div>
+ <div id="alerts-table"></div>
+</div>
+
+<script>
+const TOKEN = "__TOKEN__";
+const BASE = window.location.origin;
+
+function authHeaders() {
+  return { "Authorization": "Bearer " + TOKEN };
+}
+
+async function api(path) {
+  const r = await fetch(BASE + path, { headers: authHeaders() });
+  if (!r.ok) throw new Error(path + " → " + r.status);
+  return r.json();
+}
+
+function card(label, value, cls, sub) {
+  return '<div class="card"><div class="label">' + esc(label) + '</div>' +
+    '<div class="value ' + (cls||'') + '">' + esc(String(value)) + '</div>' +
+    (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + '</div>';
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function timeAgo(iso) {
+  if (!iso) return "—";
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 60) return Math.round(diff) + " сек тому";
+  if (diff < 3600) return Math.round(diff / 60) + " хв тому";
+  if (diff < 86400) return Math.round(diff / 3600) + " год тому";
+  return Math.round(diff / 86400) + " дн тому";
+}
+
+function severityBadge(s) {
+  const cls = s === 'critical' ? 'badge-critical' : s === 'warning' ? 'badge-warning' : 'badge-info';
+  return '<span class="badge ' + cls + '">' + esc(s) + '</span>';
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-banner');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function clearError() {
+  document.getElementById('error-banner').style.display = 'none';
+}
+
+async function loadSystem() {
+  try {
+    const data = await api('/admin/stats');
+    const el = document.getElementById('system-cards');
+    el.innerHTML =
+      card('Всього контенту', data.items?.total ?? '—', 'accent') +
+      card('Курований', data.items?.curated ?? '—', '') +
+      card('TMDB', data.items?.tmdb ?? '—', '') +
+      card('Користувачів', data.users?.total ?? '—', 'accent');
+  } catch (e) { showError('Система: ' + e.message); }
+}
+
+async function loadBotMetrics() {
+  try {
+    const data = await api('/admin/metrics/latest');
+    const el = document.getElementById('bot-cards');
+    const m = {};
+    (data.metrics || []).forEach(function(x) { m[x.metric_name] = x; });
+    el.innerHTML =
+      card('DAU', m.dau?.value ?? '—', 'accent', m.dau?.date || '') +
+      card('Сесії', m.sessions?.value ?? '—', '', m.sessions?.date || '') +
+      card('Hit rate', m.hit_rate?.value != null ? (m.hit_rate.value * 100).toFixed(1) + '%' : '—',
+           (m.hit_rate?.value ?? 0) > 0.5 ? 'green' : 'yellow', m.hit_rate?.date || '') +
+      card('Miss rate', m.miss_rate?.value != null ? (m.miss_rate.value * 100).toFixed(1) + '%' : '—',
+           (m.miss_rate?.value ?? 0) > 0.3 ? 'red' : 'green', m.miss_rate?.date || '') +
+      card('Обрані', m.favorites?.value ?? '—', '', m.favorites?.date || '') +
+      card('Поділились', m.shares?.value ?? '—', '', m.shares?.date || '');
+  } catch (e) { showError('Бот: ' + e.message); }
+}
+
+async function loadChannelMetrics() {
+  try {
+    const data = await api('/admin/metrics/latest');
+    const el = document.getElementById('channel-cards');
+    const m = {};
+    (data.metrics || []).forEach(function(x) { m[x.metric_name] = x; });
+    el.innerHTML =
+      card('Опубліковано постів', m.posts_published?.value ?? '—', 'accent',
+           m.posts_published?.date || '') +
+      card('Середній score', m.avg_score?.value != null ? Number(m.avg_score.value).toFixed(1) : '—',
+           '', m.avg_score?.date || '') +
+      card('Bot clicks', m.bot_clicks?.value ?? '—', 'accent', m.bot_clicks?.date || '') +
+      card('Реакцій', m.reactions?.value ?? '—', '', m.reactions?.date || '') +
+      card('Пересилань', m.forwards?.value ?? '—', '', m.forwards?.date || '');
+  } catch (e) { showError('Канал: ' + e.message); }
+}
+
+async function loadSLO() {
+  try {
+    const data = await api('/admin/slo/ttfr');
+    const el = document.getElementById('slo-cards');
+    el.innerHTML =
+      card('TTFR p50', data.p50 != null ? data.p50.toFixed(2) + ' с' : '—',
+           (data.p50 ?? 99) < 3 ? 'green' : 'red') +
+      card('TTFR p90', data.p90 != null ? data.p90.toFixed(2) + ' с' : '—',
+           (data.p90 ?? 99) < 5 ? 'green' : 'yellow') +
+      card('Вибірка', data.sample_count ?? '—', '', data.date || '');
+  } catch (e) { showError('SLO: ' + e.message); }
+}
+
+async function loadPosts() {
+  try {
+    const data = await api('/admin/posts/recent');
+    const el = document.getElementById('posts-table');
+    const posts = data.posts || [];
+    if (!posts.length) { el.innerHTML = '<div class="empty">Постів поки немає</div>'; return; }
+    let h = '<table><thead><tr><th>ID</th><th>Формат</th><th>Варіант</th>' +
+            '<th>Опубліковано</th><th>Score</th><th>Реакції</th><th>Перегляди</th>' +
+            '<th>Bot clicks</th></tr></thead><tbody>';
+    posts.forEach(function(p) {
+      h += '<tr><td>' + esc(p.post_id || '') + '</td>' +
+        '<td>' + esc(p.format_id || '') + '</td>' +
+        '<td>' + esc(p.variant_id || '') + '</td>' +
+        '<td>' + (p.published_at ? timeAgo(p.published_at) : '—') + '</td>' +
+        '<td>' + (p.score != null ? Number(p.score).toFixed(1) : '—') + '</td>' +
+        '<td>' + (p.reactions ?? 0) + '</td>' +
+        '<td>' + (p.views ?? 0) + '</td>' +
+        '<td>' + (p.bot_clicks ?? 0) + '</td></tr>';
+    });
+    h += '</tbody></table>';
+    el.innerHTML = h;
+  } catch (e) { showError('Пости: ' + e.message); }
+}
+
+async function loadAlerts() {
+  try {
+    const data = await api('/admin/alerts?unresolved_only=false&limit=20');
+    const el = document.getElementById('alerts-table');
+    const alerts = data.alerts || [];
+    if (!alerts.length) { el.innerHTML = '<div class="empty">Сповіщень немає</div>'; return; }
+    let h = '<table><thead><tr><th>Тип</th><th>Рівень</th><th>Повідомлення</th>' +
+            '<th>Створено</th><th>Статус</th></tr></thead><tbody>';
+    alerts.forEach(function(a) {
+      const resolved = a.resolved_at != null;
+      h += '<tr><td>' + esc(a.alert_type || '') + '</td>' +
+        '<td>' + severityBadge(a.severity || 'info') + '</td>' +
+        '<td>' + esc(a.message || '') + '</td>' +
+        '<td>' + timeAgo(a.created_at) + '</td>' +
+        '<td><span class="badge ' + (resolved ? 'badge-resolved' : 'badge-open') + '">' +
+        (resolved ? 'Вирішено' : 'Відкрито') + '</span></td></tr>';
+    });
+    h += '</tbody></table>';
+    el.innerHTML = h;
+  } catch (e) { showError('Сповіщення: ' + e.message); }
+}
+
+async function loadAll() {
+  clearError();
+  await Promise.allSettled([
+    loadSystem(),
+    loadBotMetrics(),
+    loadChannelMetrics(),
+    loadSLO(),
+    loadPosts(),
+    loadAlerts(),
+  ]);
+  document.getElementById('last-update').textContent =
+    'Оновлено: ' + new Date().toLocaleTimeString('uk-UA');
+}
+
+// Initial load
+loadAll();
+
+// Auto-refresh every 60s
+setInterval(loadAll, 60000);
+</script>
+</body>
+</html>
+"""
 
 
 async def run_polling() -> None:
