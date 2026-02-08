@@ -107,6 +107,8 @@ def setup_tmdb_sync_job() -> str | None:
     except Exception:
         pass
 
+    from datetime import datetime, timezone
+
     job = scheduler.add_job(
         run_tmdb_sync,
         "interval",
@@ -114,6 +116,7 @@ def setup_tmdb_sync_job() -> str | None:
         id=TMDB_SYNC_JOB_ID,
         name="TMDB Catalog Sync",
         replace_existing=True,
+        next_run_time=datetime.now(timezone.utc),
     )
     logger.info(
         f"Scheduled TMDB sync job: interval={config.tmdb_sync_interval_hours}h, "
