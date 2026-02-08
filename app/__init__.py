@@ -1,0 +1,1 @@
+"""FramePick Telegram Bot Application."""

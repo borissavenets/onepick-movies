@@ -1,0 +1,72 @@
+[
+  {
+    "item_id": "cur-0001",
+    "title": "The Shawshank Redemption",
+    "type": "movie",
+    "tags": {
+      "tone": ["warm", "dark"],
+      "pace": ["slow"],
+      "mood": ["heavy", "escape"],
+      "intensity": 3
+    },
+    "language": "en",
+    "base_score": 9.3,
+    "curated": true
+  },
+  {
+    "item_id": "cur-0002",
+    "title": "Breaking Bad",
+    "type": "series",
+    "tags": {
+      "tone": ["dark", "tense"],
+      "pace": ["slow", "fast"],
+      "mood": ["heavy"],
+      "intensity": 5
+    },
+    "language": "en",
+    "base_score": 9.5,
+    "curated": true
+  },
+  {
+    "item_id": "cur-0003",
+    "title": "Amélie",
+    "type": "movie",
+    "tags": {
+      "tone": ["warm", "cozy"],
+      "pace": ["slow"],
+      "mood": ["light", "escape"],
+      "intensity": 1
+    },
+    "language": "fr",
+    "base_score": 8.3,
+    "curated": true
+  },
+  {
+    "item_id": "cur-0004",
+    "title": "Ted Lasso",
+    "type": "series",
+    "tags": {
+      "tone": ["warm", "cozy"],
+      "pace": ["fast"],
+      "mood": ["light", "escape"],
+      "intensity": 2
+    },
+    "language": "en",
+    "base_score": 8.8,
+    "curated": true
+  },
+  {
+    "item_id": "cur-0005",
+    "title": "Parasite",
+    "type": "movie",
+    "tags": {
+      "tone": ["dark", "tense"],
+      "pace": ["fast"],
+      "mood": ["heavy"],
+      "intensity": 4
+    },
+    "language": "ko",
+    "base_score": 8.5,
+    "curated": true
+  }
+]
