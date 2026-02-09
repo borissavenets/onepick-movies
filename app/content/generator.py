@@ -23,6 +23,7 @@ from app.content.selector import (
     select_for_versus,
     select_items_for_format,
 )
+from app.content.poster_combine import combine_posters
 from app.content.style_lint import fix_common_issues, lint_post, proofread, truncate_to_limits
 from app.content.templates import FORMATS, render_fallback
 from app.logging import get_logger
@@ -528,9 +529,12 @@ async def generate_post(
             f"{[v.rule for v in lint_result.violations]}"
         )
 
-    # Get poster: from items for film formats, static image for poll/bot_teaser
+    # Get poster: combined for 2-item formats, single for others, static for poll/bot_teaser
     poster_url: str | None = None
-    if items:
+    if len(items) >= 2 and items[0].poster_url and items[1].poster_url:
+        combined = await combine_posters(items[0].poster_url, items[1].poster_url)
+        poster_url = combined or items[0].poster_url
+    elif items:
         poster_url = items[0].poster_url
     elif format_id in STATIC_POSTERS:
         static_path = STATIC_POSTERS[format_id]
