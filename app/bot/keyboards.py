@@ -6,7 +6,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 # s: state selection (light/heavy/escape)
 # p: pace selection (slow/fast)
 # f: format selection (movie/series)
-# a: action on recommendation (hit/another/miss/fav/share)
+# a: action on recommendation (hit/another/miss/fav/share/seen)
 # r: miss reason (tooslow/tooheavy/notvibe)
 # n: navigation (pick/done/restart)
 
@@ -55,14 +55,8 @@ def kb_pace(state: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(
-                    text="Повільно",
-                    callback_data=f"p:slow|{state}"
-                ),
-                InlineKeyboardButton(
-                    text="Динамічно",
-                    callback_data=f"p:fast|{state}"
-                ),
+                InlineKeyboardButton(text="Повільно", callback_data=f"p:slow|{state}"),
+                InlineKeyboardButton(text="Динамічно", callback_data=f"p:fast|{state}"),
             ]
         ]
     )
@@ -81,14 +75,8 @@ def kb_format(state: str, pace: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(
-                    text="Фільм",
-                    callback_data=f"f:movie|{state}|{pace}"
-                ),
-                InlineKeyboardButton(
-                    text="Серіал",
-                    callback_data=f"f:series|{state}|{pace}"
-                ),
+                InlineKeyboardButton(text="Фільм", callback_data=f"f:movie|{state}|{pace}"),
+                InlineKeyboardButton(text="Серіал", callback_data=f"f:series|{state}|{pace}"),
             ]
         ]
     )
@@ -109,28 +97,16 @@ def kb_recommendation(rec_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(
-                    text="✅ Влучив",
-                    callback_data=f"a:hit|{short_id}"
-                ),
-                InlineKeyboardButton(
-                    text="🔁 Ще",
-                    callback_data=f"a:another|{short_id}"
-                ),
-                InlineKeyboardButton(
-                    text="❌ Мимо",
-                    callback_data=f"a:miss|{short_id}"
-                ),
+                InlineKeyboardButton(text="✅ Влучив", callback_data=f"a:hit|{short_id}"),
+                InlineKeyboardButton(text="🔁 Ще", callback_data=f"a:another|{short_id}"),
+                InlineKeyboardButton(text="❌ Мимо", callback_data=f"a:miss|{short_id}"),
             ],
             [
-                InlineKeyboardButton(
-                    text="⭐ В обране",
-                    callback_data=f"a:fav|{short_id}"
-                ),
-                InlineKeyboardButton(
-                    text="📤 Поділитись",
-                    callback_data=f"a:share|{short_id}"
-                ),
+                InlineKeyboardButton(text="⭐ В обране", callback_data=f"a:fav|{short_id}"),
+                InlineKeyboardButton(text="📤 Поділитись", callback_data=f"a:share|{short_id}"),
+            ],
+            [
+                InlineKeyboardButton(text="👁 Вже дивився", callback_data=f"a:seen|{short_id}"),
             ],
         ]
     )
@@ -176,14 +152,8 @@ def kb_after_hit() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(
-                    text="Ще одну",
-                    callback_data="n:another"
-                ),
-                InlineKeyboardButton(
-                    text="Досить",
-                    callback_data="n:done"
-                ),
+                InlineKeyboardButton(text="Ще одну", callback_data="n:another"),
+                InlineKeyboardButton(text="Досить", callback_data="n:done"),
             ]
         ]
     )

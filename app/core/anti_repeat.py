@@ -3,7 +3,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config
-from app.storage import FavoritesRepo, RecsRepo
+from app.storage import DismissedRepo, FavoritesRepo, RecsRepo
 
 
 async def get_excluded_item_ids(
@@ -30,12 +30,16 @@ async def get_excluded_item_ids(
 
     recs_repo = RecsRepo(session)
     favorites_repo = FavoritesRepo(session)
+    dismissed_repo = DismissedRepo(session)
 
     # Get recently recommended items
     recent_ids = await recs_repo.list_recent_user_item_ids(user_id, days=days)
 
-    if not recent_ids:
-        # No recent recommendations, just return additional excludes
+    # Get dismissed items (permanently excluded)
+    dismissed_ids = await dismissed_repo.list_dismissed_ids(user_id)
+
+    if not recent_ids and not dismissed_ids:
+        # No recent recommendations or dismissals, just return additional excludes
         return additional_excludes or set()
 
     # Get user's favorited items (these bypass anti-repeat)
@@ -44,6 +48,9 @@ async def get_excluded_item_ids(
 
     # Exclude recent items that aren't favorited
     excluded = recent_ids - favorited_ids
+
+    # Dismissed items are always excluded (even if favorited)
+    excluded = excluded | dismissed_ids
 
     # Add any additional excludes
     if additional_excludes:

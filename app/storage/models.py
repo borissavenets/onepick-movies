@@ -41,6 +41,9 @@ class User(Base):
     favorites: Mapped[list["Favorite"]] = relationship(
         "Favorite", back_populates="user", cascade="all, delete-orphan"
     )
+    dismissed: Mapped[list["DismissedItem"]] = relationship(
+        "DismissedItem", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class UserWeight(Base):
@@ -147,7 +150,7 @@ class Feedback(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "action IN ('hit', 'miss', 'another', 'favorite', 'share', 'silent_drop')",
+            "action IN ('hit', 'miss', 'another', 'favorite', 'share', 'silent_drop', 'dismissed')",
             name="ck_feedback_action",
         ),
         Index("ix_feedback_user_created", "user_id", "created_at"),
@@ -175,6 +178,29 @@ class Favorite(Base):
 
     __table_args__ = (
         UniqueConstraint("user_id", "item_id", name="uq_favorites_user_item"),
+    )
+
+
+class DismissedItem(Base):
+    """Items dismissed by user ('already watched') — permanently excluded from recommendations."""
+
+    __tablename__ = "dismissed_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False
+    )
+    item_id: Mapped[str] = mapped_column(
+        String, ForeignKey("items.item_id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    # Relationships
+    user: Mapped["User"] = relationship("User", back_populates="dismissed")
+    item: Mapped["Item"] = relationship("Item")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "item_id", name="uq_dismissed_user_item"),
     )
 
 

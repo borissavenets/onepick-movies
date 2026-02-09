@@ -7,6 +7,7 @@ from app.storage.models import (
     ABWinner,
     Alert,
     DailyMetric,
+    DismissedItem,
     Event,
     Favorite,
     Feedback,
@@ -18,6 +19,7 @@ from app.storage.models import (
     UserWeight,
 )
 from app.storage.repo_ab_winners import ABWinnersRepo
+from app.storage.repo_dismissed import DismissedRepo
 from app.storage.repo_alerts import AlertsRepo
 from app.storage.repo_daily_metrics import DailyMetricsRepo
 from app.storage.repo_events import EventsRepo
@@ -48,6 +50,7 @@ __all__ = [
     "Recommendation",
     "Feedback",
     "Favorite",
+    "DismissedItem",
     "Post",
     "PostMetric",
     "ABWinner",
@@ -61,6 +64,7 @@ __all__ = [
     "RecsRepo",
     "FeedbackRepo",
     "FavoritesRepo",
+    "DismissedRepo",
     "PostsRepo",
     "MetricsRepo",
     "ABWinnersRepo",

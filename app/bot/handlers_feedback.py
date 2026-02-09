@@ -11,6 +11,7 @@ from app.bot.keyboards import (
     parse_callback,
 )
 from app.bot.messages import (
+    ack_dismissed,
     ack_favorite,
     ack_hit,
     ack_miss,
@@ -22,7 +23,7 @@ from app.bot.sender import safe_answer_callback, safe_send_message, safe_send_ph
 from app.bot.session import flow_sessions, rec_sessions
 from app.core import get_recommendation, update_weights
 from app.logging import get_logger
-from app.storage import EventsRepo, FavoritesRepo, FeedbackRepo, RecsRepo, get_session_factory
+from app.storage import DismissedRepo, EventsRepo, FavoritesRepo, FeedbackRepo, RecsRepo, get_session_factory
 
 router = Router(name="feedback")
 logger = get_logger(__name__)
@@ -371,6 +372,128 @@ async def handle_miss_reason(callback: CallbackQuery) -> None:
         )
 
     # Send recovery recommendation with poster if available
+    message_text = recommendation_message(
+        title=result.title,
+        rationale=result.rationale,
+        when_to_watch=result.when_to_watch,
+        rating=result.rating,
+    )
+
+    if result.poster_url:
+        await safe_send_photo(
+            bot=callback.bot,
+            chat_id=callback.message.chat.id,
+            photo=result.poster_url,
+            caption=message_text,
+            reply_markup=kb_recommendation(result.rec_id),
+            parse_mode="HTML",
+        )
+    else:
+        await safe_send_message(
+            bot=callback.bot,
+            chat_id=callback.message.chat.id,
+            text=message_text,
+            reply_markup=kb_recommendation(result.rec_id),
+        )
+
+
+@router.callback_query(F.data.startswith("a:seen"))
+async def handle_seen(callback: CallbackQuery) -> None:
+    """Handle 'Already watched' — dismiss item and show next recommendation."""
+    await safe_answer_callback(callback)
+
+    if not callback.message or not callback.from_user or not callback.data:
+        return
+
+    user_id = str(callback.from_user.id)
+    rec_id = _get_rec_id_from_callback(callback.data, user_id)
+
+    # Get item_id from session
+    rec_session = rec_sessions.get(user_id)
+    if not rec_session or not rec_session.last_item_id:
+        logger.warning(f"No item_id found for seen from user {user_id}")
+        await _send_no_rec_error(callback)
+        return
+
+    item_id = rec_session.last_item_id
+
+    logger.info(f"User {user_id} dismissed item {item_id} (already watched)")
+
+    # Get answers for next recommendation
+    flow_session = flow_sessions.get(user_id)
+    if not flow_session or not flow_session.answers:
+        await _send_restart(callback)
+        return
+
+    answers = flow_session.answers
+
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        # Save dismissed
+        dismissed_repo = DismissedRepo(session)
+        await dismissed_repo.add_dismissed(user_id, item_id)
+
+        # Add feedback if we have rec_id
+        if rec_id:
+            feedback_repo = FeedbackRepo(session)
+            await feedback_repo.add_feedback(
+                user_id=user_id,
+                rec_id=rec_id,
+                action="dismissed",
+            )
+
+        # Log event
+        events_repo = EventsRepo(session)
+        await events_repo.log_event(
+            event_name="feedback",
+            user_id=user_id,
+            rec_id=rec_id,
+            payload={"action": "dismissed", "item_id": item_id},
+        )
+
+        # Send confirmation
+        await safe_send_message(
+            bot=callback.bot,
+            chat_id=callback.message.chat.id,
+            text=ack_dismissed(),
+        )
+
+        # Get next recommendation (same flow as handle_another)
+        exclude_ids = {item_id}
+
+        result = await get_recommendation(
+            session=session,
+            user_id=user_id,
+            answers=answers,
+            mode="another",
+            exclude_item_ids=exclude_ids,
+        )
+
+        if not result:
+            await safe_send_message(
+                bot=callback.bot,
+                chat_id=callback.message.chat.id,
+                text="Це все, що в мене є на зараз. Спробуй пізніше!",
+                reply_markup=kb_restart(),
+            )
+            return
+
+        # Store new rec info
+        rec_sessions.set_last_rec(user_id, result.rec_id, result.item_id)
+
+        # Log new recommendation
+        await events_repo.log_event(
+            event_name="recommendation_shown",
+            user_id=user_id,
+            rec_id=result.rec_id,
+            payload={
+                "item_id": result.item_id,
+                "title": result.title,
+                "mode": "after_dismissed",
+            },
+        )
+
+    # Send new recommendation
     message_text = recommendation_message(
         title=result.title,
         rationale=result.rationale,

@@ -14,23 +14,23 @@ def question_state() -> str:
     """First question: emotional state."""
     return (
         "<b>Який у тебе зараз настрій?</b>\n\n"
-        "Обери те, що відгукується:"
+        "Обери те, що найбільше відгукується прямо зараз:"
     )
 
 
 def question_pace() -> str:
     """Second question: desired pace."""
     return (
-        "<b>Який темп тобі підходить?</b>\n\n"
-        "Повільно і вдумливо чи динамічно?"
+        "<b>Який темп тобі зараз підходить?</b>\n\n"
+        "Повільно і вдумливо — чи швидко і динамічно?"
     )
 
 
 def question_format() -> str:
     """Third question: content format."""
     return (
-        "<b>Фільм чи серіал?</b>\n\n"
-        "Одна історія чи тривала подорож?"
+        "<b>Фільм чи серіал — що тобі ближче?</b>\n\n"
+        "Одна завершена історія чи тривала подорож?"
     )
 
 
@@ -82,6 +82,11 @@ def ack_another() -> str:
 def ack_favorite() -> str:
     """Confirmation when item added to favorites."""
     return "Збережено в обране."
+
+
+def ack_dismissed() -> str:
+    """Confirmation when item marked as already watched."""
+    return "Зрозумів, більше не пропонуватиму."
 
 
 def ack_share() -> str:
