@@ -23,6 +23,9 @@ ALL_FORMATS: list[str] = [
     "fact_then_pick",
     "poll",
     "bot_teaser",
+    "mood_trio",
+    "versus",
+    "quote_hook",
 ]
 
 EXPLOIT_RATE = 0.70

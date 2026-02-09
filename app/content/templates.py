@@ -209,6 +209,123 @@ BOT_TEASER = PostFormat(
 {bot_cta_line}""",
 )
 
+# Format F: Mood Trio
+MOOD_TRIO = PostFormat(
+    format_id="mood_trio",
+    name="Mood Trio",
+    intent="Three picks for one mood — compact list",
+    required_items=3,
+    system_prompt="""Ти — копірайтер для українського Telegram-каналу про кіно.
+Пиши коротко, емоційно, людською мовою.
+
+СУВОРІ ПРАВИЛА:
+- Перший рядок (хук) — максимум {hook_max} символів
+- Весь текст — максимум {body_max} символів
+- Максимум 6 рядків
+- НЕ використовуй слова: топ, IMDb, рейтинг, найкращий, must-watch, шедевр
+- НЕ розкривай сюжет, твісти, кінцівку
+- Пиши українською
+- Формат: нумерований список із 3 назв з міні-описом (3-5 слів кожен)""",
+    user_prompt_template="""Напиши пост-добірку «3 фільми/серіали під настрій».
+
+Настрій: {mood_label}
+1. {title_1} ({type_1}) — теги: {tags_1}
+2. {title_2} ({type_2}) — теги: {tags_2}
+3. {title_3} ({type_3}) — теги: {tags_3}
+
+Формат:
+1. Хук про настрій (питання або ситуація)
+2. Три пункти: емодзі + назва + 3-5 слів чому
+3. Заклик зберегти / поділитись
+
+{cta_instruction}""",
+    fallback_template="""Настрій: {mood_label} 🎬
+
+1. «{title_1}» — {micro_1}
+2. «{title_2}» — {micro_2}
+3. «{title_3}» — {micro_3}
+
+{cta_line}""",
+)
+
+# Format G: Versus
+VERSUS = PostFormat(
+    format_id="versus",
+    name="Versus",
+    intent="X vs Y comparison — audience votes with reactions",
+    required_items=2,
+    system_prompt="""Ти — копірайтер для українського Telegram-каналу про кіно.
+Пиши коротко, емоційно, людською мовою.
+
+СУВОРІ ПРАВИЛА:
+- Перший рядок (хук) — максимум {hook_max} символів
+- Весь текст — максимум {body_max} символів
+- Максимум 6 рядків
+- НЕ використовуй слова: топ, IMDb, рейтинг, найкращий, must-watch, шедевр
+- НЕ розкривай сюжет, твісти, кінцівку
+- Пиши українською
+- В кінці запропонуй голосувати реакціями (🔥 та 💙)""",
+    user_prompt_template="""Напиши пост-батл «X проти Y».
+
+X: {title_x} ({type_x}) — теги: {tags_x}
+Y: {title_y} ({type_y}) — теги: {tags_y}
+Спільне: {common}
+
+Формат:
+1. Хук-питання (що обереш?)
+2. 🔥 X — 1 речення чому крутий
+3. 💙 Y — 1 речення чому крутий
+4. Голосуй реакцією!
+
+{cta_instruction}""",
+    fallback_template="""Що обереш? 🤔
+
+🔥 «{title_x}» — {micro_x}
+💙 «{title_y}» — {micro_y}
+
+Голосуй реакцією!
+
+{cta_line}""",
+)
+
+# Format H: Quote Hook
+QUOTE_HOOK = PostFormat(
+    format_id="quote_hook",
+    name="Quote Hook",
+    intent="Atmospheric situational hook leading to a pick",
+    required_items=1,
+    system_prompt="""Ти — копірайтер для українського Telegram-каналу про кіно.
+Пиши коротко, емоційно, людською мовою.
+
+СУВОРІ ПРАВИЛА:
+- Перший рядок (хук) — максимум {hook_max} символів
+- Весь текст — максимум {body_max} символів
+- Максимум 6 рядків
+- НЕ використовуй слова: топ, IMDb, рейтинг, найкращий, must-watch, шедевр
+- НЕ розкривай сюжет, твісти, кінцівку
+- Пиши українською
+- Хук: опиши атмосферу / ситуацію / відчуття (як цитата з фільму, але не пряма цитата)""",
+    user_prompt_template="""Напиши пост з атмосферним хуком.
+
+Назва: {title}
+Тип: {item_type}
+Опис: {overview}
+Теги настрою: {mood_tags}
+Теги тону: {tone_tags}
+
+Формат:
+1. Атмосферний хук — опиши ситуацію чи відчуття (ніби цитата з життя), курсивом
+2. Рекомендація: назва + 1 речення
+3. Для кого підійде
+
+{cta_instruction}""",
+    fallback_template="""<i>{atmosphere_phrase}</i>
+
+«{title}» — {type_phrase}, {tone_phrase}.
+
+{cta_line}""",
+)
+
 # Registry of all formats
 FORMATS: dict[str, PostFormat] = {
     "one_pick_emotion": ONE_PICK_EMOTION,
@@ -216,6 +333,9 @@ FORMATS: dict[str, PostFormat] = {
     "fact_then_pick": FACT_THEN_PICK,
     "poll": POLL,
     "bot_teaser": BOT_TEASER,
+    "mood_trio": MOOD_TRIO,
+    "versus": VERSUS,
+    "quote_hook": QUOTE_HOOK,
 }
 
 
@@ -280,6 +400,25 @@ def render_fallback(
     elif format_id == "bot_teaser":
         pass  # cta_line already included
 
+    elif format_id == "mood_trio" and len(items) >= 3:
+        subs["mood_label"] = _mood_to_label(items[0].get("mood", []))
+        for i, item in enumerate(items[:3], 1):
+            subs[f"title_{i}"] = item.get("title", "")
+            subs[f"micro_{i}"] = _micro_description(item)
+
+    elif format_id == "versus" and len(items) >= 2:
+        subs["title_x"] = items[0].get("title", "")
+        subs["title_y"] = items[1].get("title", "")
+        subs["micro_x"] = _micro_description(items[0])
+        subs["micro_y"] = _micro_description(items[1])
+
+    elif format_id == "quote_hook" and items:
+        item = items[0]
+        subs["title"] = item.get("title", "")
+        subs["atmosphere_phrase"] = _atmosphere_phrase(item)
+        subs["type_phrase"] = "фільм" if item.get("type") == "movie" else "серіал"
+        subs["tone_phrase"] = _tone_to_phrase(item.get("tone", []))
+
     template = fmt.fallback_template
     for key, value in subs.items():
         template = template.replace("{" + key + "}", value)
@@ -342,3 +481,79 @@ def _generic_fact_phrase(item: dict) -> str:
     if item_type == "series":
         return "серіал що затягує"
     return "історія що запам'ятовується"
+
+
+def _mood_to_label(mood: list[str]) -> str:
+    """Convert mood tags to a short Ukrainian label."""
+    mood_map = {
+        "light": "щось легке",
+        "heavy": "щось глибоке",
+        "escape": "втекти від реальності",
+    }
+    if mood:
+        return mood_map.get(mood[0], "гарне кіно")
+    return "гарне кіно"
+
+
+def _micro_description(item: dict) -> str:
+    """Generate a 3-5 word micro-description for list formats."""
+    tone = item.get("tone", [])
+    pace = item.get("pace", [])
+    item_type = item.get("type", "movie")
+
+    if "dark" in tone and "slow" in pace:
+        return "повільна темна атмосфера"
+    if "dark" in tone:
+        return "темна й напружена"
+    if "funny" in tone and "fast" in pace:
+        return "швидка й смішна"
+    if "funny" in tone:
+        return "легкий гумор"
+    if "warm" in tone and "slow" in pace:
+        return "тепла й неспішна"
+    if "warm" in tone:
+        return "тепла історія"
+    if "fast" in pace:
+        return "динамічна й захоплива"
+    if "slow" in pace:
+        return "неспішна й вдумлива"
+    if item_type == "series":
+        return "серіал що затягує"
+    return "варто побачити"
+
+
+def _tone_to_phrase(tone: list[str]) -> str:
+    """Convert tone tags to Ukrainian phrase."""
+    tone_map = {
+        "dark": "з темною атмосферою",
+        "funny": "з гумором",
+        "warm": "теплий і щирий",
+        "tense": "напружений",
+        "romantic": "романтичний",
+    }
+    if tone:
+        return tone_map.get(tone[0], "атмосферний")
+    return "атмосферний"
+
+
+def _atmosphere_phrase(item: dict) -> str:
+    """Generate an atmospheric hook phrase for quote_hook format."""
+    mood = item.get("mood", [])
+    tone = item.get("tone", [])
+
+    if "escape" in mood and "dark" in tone:
+        return "Коли хочеться зникнути в іншому світі, де все складно, але чесно..."
+    if "escape" in mood:
+        return "Коли реальність набридла і хочеться просто провалитись у екран..."
+    if "heavy" in mood and "dark" in tone:
+        return "Вечір, тиша, і бажання відчути щось по-справжньому..."
+    if "heavy" in mood:
+        return "Іноді хочеться кіно, після якого довго мовчиш..."
+    if "light" in mood and "funny" in tone:
+        return "Коли треба просто вимкнути голову і посміятись..."
+    if "light" in mood and "warm" in tone:
+        return "Коли хочеться чогось теплого, як какао у дощовий день..."
+    if "light" in mood:
+        return "Легкий настрій, вільний вечір — саме час..."
+
+    return "Буває такий настрій, коли потрібен саме правильний фільм..."

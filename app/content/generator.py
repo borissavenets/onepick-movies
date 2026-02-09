@@ -18,10 +18,12 @@ from app.content.selector import (
     SelectedItem,
     select_for_fact,
     select_for_if_liked,
+    select_for_mood_trio,
     select_for_one_pick,
+    select_for_versus,
     select_items_for_format,
 )
-from app.content.style_lint import fix_common_issues, lint_post, truncate_to_limits
+from app.content.style_lint import fix_common_issues, lint_post, proofread, truncate_to_limits
 from app.content.templates import FORMATS, render_fallback
 from app.logging import get_logger
 
@@ -38,6 +40,7 @@ STATIC_POSTERS: dict[str, Path] = {
 
 # Poll topics and options for deterministic fallback
 POLL_TOPICS = [
+    # --- Настрій ---
     {
         "question": "Який настрій сьогодні?",
         "options": ["Щось легке", "Щось глибоке", "Втекти від реальності"],
@@ -47,12 +50,85 @@ POLL_TOPICS = [
         "options": ["Фільм", "Серіал", "Ще не вирішив"],
     },
     {
+        "question": "П'ятничний вечір — що вмикаєш?",
+        "options": ["Комедію", "Хорор", "Документалку", "Серіал на всю ніч"],
+    },
+    {
+        "question": "Неділя, лінь, плед. Що дивимось?",
+        "options": ["Мультик", "Ромком", "Щось про їжу"],
+    },
+    # --- Жанри ---
+    {
+        "question": "Який жанр недооцінений?",
+        "options": ["Документалки", "Анімація для дорослих", "Мюзикли", "Вестерни"],
+    },
+    {
+        "question": "Найкращий жанр для побачення?",
+        "options": ["Романтика", "Трилер", "Комедія", "Хорор (серйозно)"],
+    },
+    {
+        "question": "Якби дивився лише один жанр до кінця життя?",
+        "options": ["Драма", "Комедія", "Sci-Fi", "Трилер"],
+    },
+    # --- Кіно-дебати ---
+    {
+        "question": "Дубляж чи субтитри?",
+        "options": ["Тільки дубляж", "Тільки субтитри", "Залежить від фільму"],
+    },
+    {
+        "question": "Сиквел чи оригінал?",
+        "options": ["Завжди оригінал", "Буває сиквел краще", "Люблю всесвіти"],
+    },
+    {
+        "question": "Дивитись трейлер перед фільмом?",
+        "options": ["Обов'язково", "Ніколи, спойлери!", "Тільки тизер"],
+    },
+    {
+        "question": "Книга чи екранізація?",
+        "options": ["Спочатку книга", "Спочатку фільм", "Не читаю, тільки дивлюсь"],
+    },
+    # --- Ситуативні ---
+    {
         "question": "Ідеальне кіно для дощового дня?",
         "options": ["Затишна драма", "Динамічний трилер", "Легка комедія"],
     },
     {
         "question": "Як дивишся кіно?",
         "options": ["Один/одна", "З кимось", "Залежить від настрою"],
+    },
+    {
+        "question": "Скільки серій за раз — ваш максимум?",
+        "options": ["1-2, я дисциплінований", "3-5, нормально", "Весь сезон, не зупинюсь"],
+    },
+    {
+        "question": "Що робиш, коли фільм не зайшов?",
+        "options": ["Дивлюсь до кінця", "Вимикаю через 20 хв", "Перемотую на кінець"],
+    },
+    {
+        "question": "Де найкраще дивитись кіно?",
+        "options": ["Кінотеатр", "Вдома з проєктором", "Телефон під ковдрою"],
+    },
+    # --- Ностальгія ---
+    {
+        "question": "Який фільм з дитинства досі переглядаєш?",
+        "options": ["Гаррі Поттер", "Один вдома", "Король Лев", "Свій варіант у коментах"],
+    },
+    {
+        "question": "90-ті чи 2000-ні — де краще кіно?",
+        "options": ["90-ті 🔥", "2000-ні 💙", "Зараз найкраще"],
+    },
+    # --- Смак ---
+    {
+        "question": "Фільм, який всім подобається, а тобі — ні?",
+        "options": ["Є такий!", "Ні, я з більшістю", "Таких багато 😅"],
+    },
+    {
+        "question": "Що важливіше у фільмі?",
+        "options": ["Сюжет", "Візуал і музика", "Актори", "Атмосфера"],
+    },
+    {
+        "question": "Ідеальна тривалість фільму?",
+        "options": ["До 1.5 год", "2 години — норма", "Чим довше, тим краще"],
     },
 ]
 
@@ -165,6 +241,7 @@ async def _try_llm_generate(
             # Lint check
             result = lint_post(text)
             if result.passed:
+                text = await proofread(text)
                 logger.info(f"LLM generated post for {format_id} (attempt {attempt + 1})")
                 return text
 
@@ -246,6 +323,48 @@ def _build_user_prompt(
             bot_cta_line=bot_cta,
         )
 
+    elif format_id == "mood_trio" and len(items) >= 3:
+        mood_label = ", ".join(items[0].tags.get("mood", [])) or "невідомий"
+        return fmt.user_prompt_template.format(
+            mood_label=mood_label,
+            title_1=items[0].title,
+            type_1="фільм" if items[0].item_type == "movie" else "серіал",
+            tags_1=", ".join(items[0].tags.get("tone", [])) or "—",
+            title_2=items[1].title,
+            type_2="фільм" if items[1].item_type == "movie" else "серіал",
+            tags_2=", ".join(items[1].tags.get("tone", [])) or "—",
+            title_3=items[2].title,
+            type_3="фільм" if items[2].item_type == "movie" else "серіал",
+            tags_3=", ".join(items[2].tags.get("tone", [])) or "—",
+            cta_instruction=cta_instruction,
+        )
+
+    elif format_id == "versus" and len(items) >= 2:
+        common_tags = set(items[0].tags.get("mood", [])) & set(
+            items[1].tags.get("mood", [])
+        )
+        return fmt.user_prompt_template.format(
+            title_x=items[0].title,
+            type_x="фільм" if items[0].item_type == "movie" else "серіал",
+            tags_x=", ".join(items[0].tags.get("tone", [])) or "—",
+            title_y=items[1].title,
+            type_y="фільм" if items[1].item_type == "movie" else "серіал",
+            tags_y=", ".join(items[1].tags.get("tone", [])) or "—",
+            common=", ".join(common_tags) if common_tags else "атмосфера",
+            cta_instruction=cta_instruction,
+        )
+
+    elif format_id == "quote_hook" and items:
+        item = items[0]
+        return fmt.user_prompt_template.format(
+            title=item.title,
+            item_type="фільм" if item.item_type == "movie" else "серіал",
+            overview=item.overview or "Інформація відсутня",
+            mood_tags=", ".join(item.tags.get("mood", [])) or "невідомо",
+            tone_tags=", ".join(item.tags.get("tone", [])) or "невідомо",
+            cta_instruction=cta_instruction,
+        )
+
     return None
 
 
@@ -260,9 +379,10 @@ def _generate_fallback(
 
     if format_id == "poll":
         topic = random.choice(POLL_TOPICS)
-        extra = ""
-        if len(topic["options"]) > 2:
-            extra = f"\U0001f3ac {topic['options'][2]}"
+        extra_lines = []
+        emojis = ["🎬", "⚡"]
+        for i, opt in enumerate(topic["options"][2:]):
+            extra_lines.append(f"{emojis[i % len(emojis)]} {opt}")
         return render_fallback(
             format_id,
             item_dicts,
@@ -270,7 +390,7 @@ def _generate_fallback(
             poll_question=topic["question"],
             option_1=topic["options"][0],
             option_2=topic["options"][1],
-            extra_options=extra,
+            extra_options="\n".join(extra_lines),
         )
 
     if format_id == "bot_teaser" and bot_deeplink_url:
@@ -344,6 +464,16 @@ async def generate_post(
         item = await select_for_fact(session)
         if item:
             items = [item]
+    elif format_id == "mood_trio":
+        items = await select_for_mood_trio(session)
+    elif format_id == "versus":
+        pair = await select_for_versus(session)
+        if pair:
+            items = list(pair)
+    elif format_id == "quote_hook":
+        item = await select_for_one_pick(session)
+        if item:
+            items = [item]
     elif format_id in ("poll", "bot_teaser"):
         pass  # No items needed for text
 
@@ -374,6 +504,7 @@ async def generate_post(
         text = _generate_fallback(format_id, items, cta_line, bot_deeplink_url)
         text = fix_common_issues(text)
         text = truncate_to_limits(text)
+        text = await proofread(text)
 
     # Final lint
     lint_result = lint_post(text)

@@ -345,3 +345,127 @@ async def select_for_fact(
         )
 
     return None
+
+
+async def select_for_mood_trio(
+    session: AsyncSession,
+) -> list[SelectedItem]:
+    """Select 3 items sharing the same mood for mood_trio format."""
+    items_repo = ItemsRepo(session)
+    recent_ids = await get_recently_posted_item_ids(session)
+
+    candidates = await items_repo.list_candidates(
+        exclude_ids=recent_ids if recent_ids else None,
+        limit=100,
+    )
+
+    # Group by primary mood
+    by_mood: dict[str, list[tuple[Any, dict]]] = {}
+    for item in candidates:
+        try:
+            tags = json.loads(item.tags_json) if item.tags_json else {}
+        except (json.JSONDecodeError, TypeError):
+            tags = {}
+        moods = tags.get("mood", [])
+        mood = moods[0] if moods else "unknown"
+        if mood not in by_mood:
+            by_mood[mood] = []
+        by_mood[mood].append((item, tags))
+
+    # Pick the mood group with the most items (at least 3)
+    valid_groups = {m: items for m, items in by_mood.items() if len(items) >= 3}
+    if not valid_groups:
+        return []
+
+    mood_key = random.choice(list(valid_groups.keys()))
+    chosen = random.sample(valid_groups[mood_key], 3)
+
+    return [
+        SelectedItem(
+            item_id=item.item_id,
+            title=item.title,
+            item_type=item.type,
+            overview=getattr(item, "overview", None),
+            tags=tags,
+            rating=getattr(item, "vote_average", None),
+            poster_url=getattr(item, "poster_url", None) or None,
+        )
+        for item, tags in chosen
+    ]
+
+
+async def select_for_versus(
+    session: AsyncSession,
+) -> tuple[SelectedItem, SelectedItem] | None:
+    """Select two items for versus format.
+
+    Picks items that share a mood but differ in tone/pace for contrast.
+    """
+    items_repo = ItemsRepo(session)
+    recent_ids = await get_recently_posted_item_ids(session)
+
+    candidates = await items_repo.list_candidates(
+        exclude_ids=recent_ids if recent_ids else None,
+        limit=50,
+    )
+
+    if len(candidates) < 2:
+        return None
+
+    parsed: list[tuple[Any, dict]] = []
+    for item in candidates:
+        try:
+            tags = json.loads(item.tags_json) if item.tags_json else {}
+        except (json.JSONDecodeError, TypeError):
+            tags = {}
+        parsed.append((item, tags))
+
+    # Shuffle for variety
+    random.shuffle(parsed)
+
+    item_a, tags_a = parsed[0]
+
+    # Find a contrasting partner: same mood, different tone or pace
+    mood_a = set(tags_a.get("mood", []))
+    tone_a = set(tags_a.get("tone", []))
+
+    best_match = None
+    best_score = -1
+
+    for item_b, tags_b in parsed[1:]:
+        mood_b = set(tags_b.get("mood", []))
+        tone_b = set(tags_b.get("tone", []))
+
+        mood_overlap = len(mood_a & mood_b)
+        tone_diff = len(tone_a ^ tone_b)  # symmetric difference = contrast
+        score = mood_overlap * 3 + tone_diff
+
+        if score > best_score:
+            best_score = score
+            best_match = (item_b, tags_b)
+
+    if not best_match:
+        best_match = parsed[1]
+
+    item_b, tags_b = best_match
+
+    return (
+        SelectedItem(
+            item_id=item_a.item_id,
+            title=item_a.title,
+            item_type=item_a.type,
+            overview=getattr(item_a, "overview", None),
+            tags=tags_a,
+            rating=getattr(item_a, "vote_average", None),
+            poster_url=getattr(item_a, "poster_url", None) or None,
+        ),
+        SelectedItem(
+            item_id=item_b.item_id,
+            title=item_b.title,
+            item_type=item_b.type,
+            overview=getattr(item_b, "overview", None),
+            tags=tags_b,
+            rating=getattr(item_b, "vote_average", None),
+            poster_url=getattr(item_b, "poster_url", None) or None,
+        ),
+    )

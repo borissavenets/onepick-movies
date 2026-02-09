@@ -30,6 +30,7 @@ from app.bot.messages import (
     recommendation_message,
 )
 from app.bot.sender import safe_answer_callback, safe_send_message, safe_send_photo
+from app.content.style_lint import proofread
 from app.bot.session import flow_sessions, rec_sessions
 from app.core import get_recommendation
 from app.logging import get_logger
@@ -237,11 +238,15 @@ async def handle_format_selection(callback: CallbackQuery) -> None:
             },
         )
 
+    # Proofread Ukrainian text fields
+    rationale = await proofread(result.rationale)
+    when_to_watch = await proofread(result.when_to_watch)
+
     # Send recommendation with poster if available
     message_text = recommendation_message(
         title=result.title,
-        rationale=result.rationale,
-        when_to_watch=result.when_to_watch,
+        rationale=rationale,
+        when_to_watch=when_to_watch,
         rating=result.rating,
     )
 
@@ -441,11 +446,15 @@ async def handle_nav_another(callback: CallbackQuery) -> None:
             },
         )
 
+    # Proofread Ukrainian text fields
+    rationale = await proofread(result.rationale)
+    when_to_watch = await proofread(result.when_to_watch)
+
     # Build message with optional delta explainer
     message_text = recommendation_message(
         title=result.title,
-        rationale=result.rationale,
-        when_to_watch=result.when_to_watch,
+        rationale=rationale,
+        when_to_watch=when_to_watch,
         rating=result.rating,
     )
 
@@ -484,6 +493,7 @@ async def handle_nav_done(callback: CallbackQuery) -> None:
         bot=callback.bot,
         chat_id=callback.message.chat.id,
         text="Гарного перегляду! Повертайся, коли захочеш ще.",
+        reply_markup=kb_start(),
     )
 
 

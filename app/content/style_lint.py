@@ -11,6 +11,38 @@ from app.logging import get_logger
 
 logger = get_logger(__name__)
 
+_PROOFREAD_SYSTEM = (
+    "Ти — коректор української мови. "
+    "Виправ лише граматичні, орфографічні та пунктуаційні помилки. "
+    "НЕ змінюй стиль, тон, HTML-теги, емодзі, посилання та структуру тексту. "
+    "Поверни виправлений текст без пояснень."
+)
+
+
+async def proofread(text: str) -> str:
+    """Run text through LLM to fix Ukrainian grammar/spelling.
+
+    Returns original text unchanged if LLM is unavailable.
+    """
+    if not text or not text.strip():
+        return text
+
+    try:
+        from app.llm.openai_adapter import LLMDisabledError, generate_text
+
+        result = await generate_text(
+            system_prompt=_PROOFREAD_SYSTEM,
+            user_prompt=text,
+            max_tokens=len(text) + 200,
+            temperature=0.2,
+        )
+        if result and result.strip():
+            return result.strip()
+        return text
+    except Exception as e:
+        logger.debug(f"Proofread skipped: {e}")
+        return text
+
 
 @dataclass
 class LintViolation:
