@@ -1,6 +1,7 @@
 """Repository for content item operations."""
 
 import json
+import random
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -63,6 +64,7 @@ class ItemsRepo:
         source_preference: Literal["curated", "tmdb", "any"] | None = None,
         tag_status: str | None = None,
         limit: int = 200,
+        randomize: bool = False,
     ) -> list[Item]:
         """List candidate items for recommendation.
 
@@ -74,10 +76,14 @@ class ItemsRepo:
             source_preference: Filter by source ('curated', 'tmdb', or 'any')
             tag_status: Filter by tag_status ('pending', 'tagged', etc.)
             limit: Maximum items to return
+            randomize: If True, fetch 3x limit and randomly sample to avoid
+                       always picking the same top-scored items
 
         Returns:
             List of matching items
         """
+        fetch_limit = limit * 3 if randomize else limit
+
         stmt = select(Item)
 
         if item_type:
@@ -96,7 +102,7 @@ class ItemsRepo:
         if exclude_ids:
             stmt = stmt.where(Item.item_id.notin_(exclude_ids))
 
-        stmt = stmt.order_by(Item.base_score.desc()).limit(limit)
+        stmt = stmt.order_by(Item.base_score.desc()).limit(fetch_limit)
 
         result = await self.session.execute(stmt)
         items = list(result.scalars().all())
@@ -104,6 +110,9 @@ class ItemsRepo:
         # Post-filter by tags if needed (SQLite doesn't support JSON queries well)
         if filter_tags:
             items = self._filter_by_tags(items, filter_tags)
+
+        if randomize and len(items) > limit:
+            items = random.sample(items, limit)
 
         return items
 

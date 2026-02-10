@@ -164,6 +164,43 @@ class PostsRepo:
                 continue
         return None
 
+    async def update_post_meta(self, post_id: str, meta_json: str) -> bool:
+        """Update meta_json for an existing post.
+
+        Args:
+            post_id: Post ID
+            meta_json: New JSON metadata string
+
+        Returns:
+            True if updated, False if not found
+        """
+        from sqlalchemy import update
+
+        stmt = (
+            update(Post)
+            .where(Post.post_id == post_id)
+            .values(meta_json=meta_json)
+        )
+        result = await self.session.execute(stmt)
+        await self.session.commit()
+        return result.rowcount > 0
+
+    async def delete_post(self, post_id: str) -> bool:
+        """Delete a post record.
+
+        Args:
+            post_id: Post ID
+
+        Returns:
+            True if deleted, False if not found
+        """
+        from sqlalchemy import delete
+
+        stmt = delete(Post).where(Post.post_id == post_id)
+        result = await self.session.execute(stmt)
+        await self.session.commit()
+        return result.rowcount > 0
+
     async def count_posts(self) -> int:
         """Count total posts.
 

@@ -233,6 +233,20 @@ async def run_publish_post(
             meta["schedule_id"] = schedule_id
         enriched_meta = json.dumps(meta, ensure_ascii=False)
 
+        # --- Persist to DB FIRST (before sending to Telegram) ---
+        # This ensures the items are recorded for dedup even if the send
+        # step partially fails or overlaps with another publish call.
+        async with session_factory() as session:
+            posts_repo = PostsRepo(session)
+            await posts_repo.create_post(
+                post_id=post_uuid,
+                format_id=format_id,
+                hypothesis_id=hypothesis_id,
+                variant_id=variant_id,
+                text=generated.text,
+                meta_json=enriched_meta,
+            )
+
         # --- Send to channel ---
         from app.bot.instance import bot
 
@@ -256,26 +270,22 @@ async def run_publish_post(
             )
 
         if msg is None:
-            logger.error("Failed to send channel post via Telegram")
+            logger.error("Failed to send channel post via Telegram, removing DB record")
+            # Remove the pre-persisted record so it doesn't block future selection
+            async with session_factory() as session:
+                posts_repo = PostsRepo(session)
+                await posts_repo.delete_post(post_uuid)
             return PostResult(ok=False, format_id=format_id, error="send_failed")
 
         telegram_message_id = str(msg.message_id)
 
-        # Store telegram_message_id in meta
+        # --- Update DB record with telegram_message_id ---
         meta["telegram_message_id"] = telegram_message_id
         enriched_meta = json.dumps(meta, ensure_ascii=False)
 
-        # --- Persist to DB ---
         async with session_factory() as session:
             posts_repo = PostsRepo(session)
-            await posts_repo.create_post(
-                post_id=post_uuid,
-                format_id=format_id,
-                hypothesis_id=hypothesis_id,
-                variant_id=variant_id,
-                text=generated.text,
-                meta_json=enriched_meta,
-            )
+            await posts_repo.update_post_meta(post_uuid, enriched_meta)
 
             events_repo = EventsRepo(session)
             await events_repo.log_event(

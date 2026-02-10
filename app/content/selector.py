@@ -52,7 +52,7 @@ async def get_recently_posted_item_ids(
 
     # Get recent posts
     try:
-        recent_posts = await posts_repo.list_recent_posts(limit=500)
+        recent_posts = await posts_repo.list_recent_posts(days=days, limit=500)
     except Exception as e:
         logger.warning(f"Could not fetch recent posts: {e}")
         return set()
@@ -114,6 +114,7 @@ async def select_items_for_format(
         item_type=item_type,
         exclude_ids=all_excluded if all_excluded else None,
         limit=100,
+        randomize=True,
     )
 
     if not candidates:
@@ -227,6 +228,7 @@ async def select_for_if_liked(
     candidates = await items_repo.list_candidates(
         exclude_ids=recent_ids if recent_ids else None,
         limit=50,
+        randomize=True,
     )
 
     if len(candidates) < 2:
@@ -305,6 +307,7 @@ async def select_for_fact(
     candidates = await items_repo.list_candidates(
         exclude_ids=recent_ids if recent_ids else None,
         limit=50,
+        randomize=True,
     )
 
     # Prefer items with overview
@@ -357,6 +360,7 @@ async def select_for_mood_trio(
     candidates = await items_repo.list_candidates(
         exclude_ids=recent_ids if recent_ids else None,
         limit=100,
+        randomize=True,
     )
 
     # Group by primary mood
@@ -407,6 +411,7 @@ async def select_for_versus(
     candidates = await items_repo.list_candidates(
         exclude_ids=recent_ids if recent_ids else None,
         limit=50,
+        randomize=True,
     )
 
     if len(candidates) < 2:

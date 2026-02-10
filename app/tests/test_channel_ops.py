@@ -85,6 +85,7 @@ class TestDeeplinkInMetaJson:
                 mocks[k].return_value = mock_posts_repo
             mock_posts_repo.list_recent_posts = AsyncMock(return_value=[])
             mock_posts_repo.create_post = AsyncMock()
+            mock_posts_repo.update_post_meta = AsyncMock(return_value=True)
 
             for k in ("er_mod", "er_pkg"):
                 mocks[k].return_value = mock_events_repo
@@ -97,7 +98,7 @@ class TestDeeplinkInMetaJson:
 
             assert result.ok is True
 
-            # Inspect the meta_json that was saved
+            # Inspect the meta_json from create_post (persisted BEFORE send)
             call_kwargs = mock_posts_repo.create_post.call_args.kwargs
             saved_meta = json.loads(call_kwargs["meta_json"])
 
@@ -106,8 +107,15 @@ class TestDeeplinkInMetaJson:
             assert "hypothesis_id" in saved_meta
             assert "variant_id" in saved_meta
             assert saved_meta["variant_id"] in ("v-a", "v-b")
-            assert "telegram_message_id" in saved_meta
-            assert saved_meta["telegram_message_id"] == "99"
+            # telegram_message_id is NOT in create_post (persist-before-send)
+            assert "telegram_message_id" not in saved_meta
+
+            # telegram_message_id is added via update_post_meta after send
+            mock_posts_repo.update_post_meta.assert_called_once()
+            update_args = mock_posts_repo.update_post_meta.call_args
+            updated_meta = json.loads(update_args[0][1])
+            assert "telegram_message_id" in updated_meta
+            assert updated_meta["telegram_message_id"] == "99"
         finally:
             for p in patches.values():
                 p.stop()
