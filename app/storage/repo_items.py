@@ -214,6 +214,7 @@ class ItemsRepo:
         title: str,
         overview: str | None = None,
         genres: list | None = None,
+        genres_json: str | None = None,
         language: str | None = None,
         popularity: float | None = None,
         vote_average: float | None = None,
@@ -279,6 +280,8 @@ class ItemsRepo:
             updated_at=now,
             poster_url=poster_url,
             vote_average=vote_average,
+            overview=overview,
+            genres_json=genres_json,
         )
 
         # On conflict with item_id (primary key), update fields
@@ -293,6 +296,8 @@ class ItemsRepo:
                 "updated_at": now,
                 "poster_url": poster_url,
                 "vote_average": vote_average,
+                "overview": overview,
+                "genres_json": genres_json,
             },
         )
 
@@ -414,6 +419,47 @@ class ItemsRepo:
         stmt = (
             select(Item)
             .where(Item.tag_status == "pending")
+            .order_by(Item.base_score.desc())
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def update_credits(self, item_id: str, credits_json: str) -> bool:
+        """Update item credits_json.
+
+        Args:
+            item_id: Item ID
+            credits_json: JSON string with director and actors
+
+        Returns:
+            True if updated, False if not found
+        """
+        from sqlalchemy import update
+
+        now = datetime.now(timezone.utc)
+        stmt = (
+            update(Item)
+            .where(Item.item_id == item_id)
+            .values(credits_json=credits_json, updated_at=now)
+        )
+        result = await self.session.execute(stmt)
+        await self.session.commit()
+        return result.rowcount > 0
+
+    async def list_missing_credits(self, limit: int = 20) -> list[Item]:
+        """List items where credits_json is NULL.
+
+        Args:
+            limit: Maximum items to return
+
+        Returns:
+            List of items needing credits fetch
+        """
+        stmt = (
+            select(Item)
+            .where(Item.source == "tmdb")
+            .where(Item.credits_json.is_(None))
             .order_by(Item.base_score.desc())
             .limit(limit)
         )

@@ -88,6 +88,11 @@ class Item(Base):
     poster_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     vote_average: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
+    # Detail fields (populated from TMDB)
+    overview: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    genres_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    credits_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     # Relationships
     recommendations: Mapped[list["Recommendation"]] = relationship(
         "Recommendation", back_populates="item"

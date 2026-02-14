@@ -408,6 +408,7 @@ def parse_hint(hint: str | None) -> HintResult:
         "something", "like", "similar", "good", "cool", "nice", "great",
         "want", "хочу", "хочеться", "давай", "може", "можливо",
         "про", "about", "with",
+        "фільм", "серіал", "movie", "series", "show",
     }
     search_words = [w for w in words if len(w) >= 3 and w not in stop_words]
 
@@ -418,6 +419,9 @@ def hint_match_score(
     item_title: str,
     item_tags: dict[str, Any] | None,
     hint_result: HintResult,
+    overview: str | None = None,
+    genres_json: str | None = None,
+    credits_json: str | None = None,
 ) -> float:
     """Calculate bonus score for hint keyword matches.
 
@@ -425,9 +429,12 @@ def hint_match_score(
         item_title: Item title for keyword matching
         item_tags: Parsed item tags
         hint_result: Parsed hint data
+        overview: Item overview/description text
+        genres_json: JSON string of genre names
+        credits_json: JSON string with director and actors
 
     Returns:
-        Bonus score (0.0 to 5.0)
+        Bonus score (0.0 to 8.0)
     """
     if not hint_result.search_words and not hint_result.tone_keywords:
         return 0.0
@@ -447,4 +454,31 @@ def hint_match_score(
             if tone in item_tones:
                 score += 1.5
 
-    return min(score, 5.0)
+    # Overview keyword match (+1.0 per word)
+    if overview and hint_result.search_words:
+        overview_lower = overview.lower()
+        for word in hint_result.search_words:
+            if word in overview_lower:
+                score += 1.0
+
+    # Genre keyword match (+2.0 per word)
+    if genres_json and hint_result.search_words:
+        try:
+            genres_lower = genres_json.lower()
+            for word in hint_result.search_words:
+                if word in genres_lower:
+                    score += 2.0
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    # Credits keyword match (+3.0 per word)
+    if credits_json and hint_result.search_words:
+        try:
+            credits_lower = credits_json.lower()
+            for word in hint_result.search_words:
+                if word in credits_lower:
+                    score += 3.0
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    return min(score, 8.0)

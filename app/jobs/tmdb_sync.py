@@ -1,5 +1,6 @@
 """TMDB catalog sync job."""
 
+import json
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -7,7 +8,12 @@ from typing import Any, Literal
 
 from app.config import config
 from app.logging import get_logger
-from app.providers.tmdb_client import TMDBClient, TMDBError
+from app.providers.tmdb_client import (
+    TMDBClient,
+    TMDBError,
+    TMDBRateLimitError,
+    genre_ids_to_names,
+)
 from app.storage import EventsRepo, ItemsRepo, get_session_factory
 
 logger = get_logger(__name__)
@@ -105,6 +111,10 @@ def extract_item_data(
     poster_path = item.get("poster_path")
     poster_url = f"{TMDB_IMAGE_BASE_URL}{poster_path}" if poster_path else None
 
+    # Convert genre IDs to names
+    genre_ids = item.get("genre_ids", [])
+    genre_names = genre_ids_to_names(genre_ids)
+
     return {
         "tmdb_id": tmdb_id,
         "title": title,
@@ -112,7 +122,8 @@ def extract_item_data(
         "overview": item.get("overview"),
         "release_date": release_date,
         "language": item.get("original_language"),
-        "genre_ids": item.get("genre_ids", []),
+        "genre_ids": genre_ids,
+        "genres_json": json.dumps(genre_names, ensure_ascii=False) if genre_names else None,
         "popularity": item.get("popularity"),
         "vote_average": vote_average,
         "vote_count": item.get("vote_count"),
@@ -178,6 +189,78 @@ async def fetch_source(
             break
 
     return items
+
+
+def _extract_credits(credits_data: dict[str, Any]) -> dict[str, Any]:
+    """Extract top 5 actors and director from TMDB credits response.
+
+    Args:
+        credits_data: TMDB credits API response
+
+    Returns:
+        Dict with 'director' and 'actors' keys
+    """
+    cast = credits_data.get("cast", [])
+    crew = credits_data.get("crew", [])
+
+    # Top 5 actors by order (cast is already sorted by order)
+    actors = [member["name"] for member in cast[:5] if member.get("name")]
+
+    # Director from crew
+    director = None
+    for member in crew:
+        if member.get("job") == "Director" and member.get("name"):
+            director = member["name"]
+            break
+
+    return {"director": director, "actors": actors}
+
+
+async def _fetch_missing_credits(
+    client: TMDBClient,
+    items_repo: ItemsRepo,
+    batch_size: int,
+) -> int:
+    """Fetch credits for items that don't have them yet.
+
+    Args:
+        client: TMDB client
+        items_repo: Items repository
+        batch_size: Max items to process per run
+
+    Returns:
+        Number of items updated
+    """
+    items = await items_repo.list_missing_credits(limit=batch_size)
+    if not items:
+        return 0
+
+    logger.info(f"Fetching credits for {len(items)} items")
+    updated = 0
+
+    for item in items:
+        # Extract TMDB ID and media type from item
+        if not item.source_id:
+            continue
+
+        tmdb_id = int(item.source_id)
+        media_type: Literal["movie", "tv"] = "movie" if item.type == "movie" else "tv"
+
+        try:
+            credits_data = await client.get_credits(media_type, tmdb_id)
+            extracted = _extract_credits(credits_data)
+            credits_json = json.dumps(extracted, ensure_ascii=False)
+            await items_repo.update_credits(item.item_id, credits_json)
+            updated += 1
+        except TMDBRateLimitError:
+            logger.warning("Credits fetch stopped: rate limit hit")
+            break
+        except TMDBError as e:
+            logger.warning(f"Credits fetch failed for {item.item_id}: {e}")
+            continue
+
+    logger.info(f"Updated credits for {updated}/{len(items)} items")
+    return updated
 
 
 async def run_tmdb_sync() -> SyncStats:
@@ -288,6 +371,7 @@ async def run_tmdb_sync() -> SyncStats:
                         title=item_data["title"],
                         overview=item_data.get("overview"),
                         genres=item_data.get("genre_ids"),
+                        genres_json=item_data.get("genres_json"),
                         language=item_data.get("language"),
                         popularity=item_data.get("popularity"),
                         vote_average=item_data.get("vote_average"),
@@ -302,6 +386,12 @@ async def run_tmdb_sync() -> SyncStats:
 
             stats.total_upserted = upsert_count
             logger.info(f"Upserted {upsert_count} items")
+
+            # Incremental credits fetch for items missing credits_json
+            if config.tmdb_credits_enabled:
+                await _fetch_missing_credits(
+                    client, items_repo, config.tmdb_credits_batch_size
+                )
 
     except Exception as e:
         logger.exception(f"TMDB sync failed: {e}")

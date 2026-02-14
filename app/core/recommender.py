@@ -424,7 +424,14 @@ async def _score_candidates(
         # Calculate hint bonus
         h_bonus = 0.0
         if hint_result:
-            h_bonus = hint_match_score(item.title, tags, hint_result)
+            h_bonus = hint_match_score(
+                item.title,
+                tags,
+                hint_result,
+                overview=getattr(item, "overview", None),
+                genres_json=getattr(item, "genres_json", None),
+                credits_json=getattr(item, "credits_json", None),
+            )
 
         # Total score
         total = item.base_score + m_score + w_bonus + n_bonus + h_bonus

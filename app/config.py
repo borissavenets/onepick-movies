@@ -36,6 +36,8 @@ class Config:
     tmdb_max_items_per_run: int
     tmdb_sync_enabled: bool
     tmdb_sync_interval_hours: int
+    tmdb_credits_enabled: bool
+    tmdb_credits_batch_size: int
 
     # Recommendation settings
     recs_epsilon: float
@@ -126,6 +128,15 @@ class Config:
             tmdb_max_items_per_run = 500
 
         tmdb_sync_enabled = os.getenv("TMDB_SYNC_ENABLED", "true").lower() in ("true", "1", "yes")
+        tmdb_credits_enabled = os.getenv("TMDB_CREDITS_ENABLED", "true").lower() in (
+            "true", "1", "yes"
+        )
+
+        tmdb_credits_batch_str = os.getenv("TMDB_CREDITS_BATCH_SIZE", "20")
+        try:
+            tmdb_credits_batch_size = int(tmdb_credits_batch_str)
+        except ValueError:
+            tmdb_credits_batch_size = 20
 
         tmdb_interval_str = os.getenv("TMDB_SYNC_INTERVAL_HOURS", "6")
         try:
@@ -284,6 +295,8 @@ class Config:
             tmdb_max_items_per_run=tmdb_max_items_per_run,
             tmdb_sync_enabled=tmdb_sync_enabled,
             tmdb_sync_interval_hours=tmdb_sync_interval_hours,
+            tmdb_credits_enabled=tmdb_credits_enabled,
+            tmdb_credits_batch_size=tmdb_credits_batch_size,
             recs_epsilon=recs_epsilon,
             recs_max_candidates=recs_max_candidates,
             recs_anti_repeat_days=recs_anti_repeat_days,

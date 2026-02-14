@@ -15,6 +15,51 @@ MAX_RETRIES = 5
 BASE_BACKOFF = 1.0
 
 
+# Combined movie + TV genre map (TMDB genre IDs -> English names)
+TMDB_GENRE_MAP: dict[int, str] = {
+    28: "Action",
+    12: "Adventure",
+    16: "Animation",
+    35: "Comedy",
+    80: "Crime",
+    99: "Documentary",
+    18: "Drama",
+    10751: "Family",
+    14: "Fantasy",
+    36: "History",
+    27: "Horror",
+    10402: "Music",
+    9648: "Mystery",
+    10749: "Romance",
+    878: "Science Fiction",
+    10770: "TV Movie",
+    53: "Thriller",
+    10752: "War",
+    37: "Western",
+    # TV-specific
+    10759: "Action & Adventure",
+    10762: "Kids",
+    10763: "News",
+    10764: "Reality",
+    10765: "Sci-Fi & Fantasy",
+    10766: "Soap",
+    10767: "Talk",
+    10768: "War & Politics",
+}
+
+
+def genre_ids_to_names(genre_ids: list[int]) -> list[str]:
+    """Convert TMDB genre IDs to human-readable names.
+
+    Args:
+        genre_ids: List of TMDB genre IDs
+
+    Returns:
+        List of genre name strings
+    """
+    return [TMDB_GENRE_MAP[gid] for gid in genre_ids if gid in TMDB_GENRE_MAP]
+
+
 class TMDBError(Exception):
     """Base exception for TMDB API errors."""
 
@@ -297,3 +342,19 @@ class TMDBClient:
             TV show details
         """
         return await self._request("GET", f"/tv/{tv_id}")
+
+    async def get_credits(
+        self,
+        media_type: Literal["movie", "tv"],
+        tmdb_id: int,
+    ) -> dict[str, Any]:
+        """Get credits (cast + crew) for a movie or TV show.
+
+        Args:
+            media_type: "movie" or "tv"
+            tmdb_id: TMDB ID
+
+        Returns:
+            Credits response with cast and crew arrays
+        """
+        return await self._request("GET", f"/{media_type}/{tmdb_id}/credits")
