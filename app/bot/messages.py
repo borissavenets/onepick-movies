@@ -34,6 +34,19 @@ def question_format() -> str:
     )
 
 
+def question_hint() -> str:
+    """Fourth question: optional free-text hint for better matching."""
+    return (
+        "<b>Є побажання?</b>\n\n"
+        "Напиши, що хочеш побачити. Наприклад:\n"
+        "- щось схоже на Бетмена\n"
+        "- класний детектив\n"
+        "- корейська драма\n"
+        "- з гарним саундтреком\n\n"
+        "Або натисни <b>Пропустити</b>, щоб я підібрав сам."
+    )
+
+
 def recommendation_message(
     title: str,
     rationale: str,

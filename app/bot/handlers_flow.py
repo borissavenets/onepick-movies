@@ -1,12 +1,13 @@
 """Handlers for the main question flow and recommendation display."""
 
-from aiogram import F, Router
-from aiogram.types import CallbackQuery
-
 import json
+
+from aiogram import F, Router
+from aiogram.types import CallbackQuery, Message
 
 from app.bot.keyboards import (
     kb_format,
+    kb_hint,
     kb_pace,
     kb_recommendation,
     kb_restart,
@@ -25,16 +26,23 @@ from app.bot.messages import (
     history_header,
     history_item,
     question_format,
+    question_hint,
     question_pace,
     question_state,
     recommendation_message,
 )
 from app.bot.sender import safe_answer_callback, safe_send_message, safe_send_photo
-from app.content.style_lint import proofread
 from app.bot.session import flow_sessions, rec_sessions
+from app.content.style_lint import proofread
 from app.core import get_recommendation
 from app.logging import get_logger
-from app.storage import EventsRepo, FavoritesRepo, FeedbackRepo, RecsRepo, get_session_factory
+from app.storage import (
+    EventsRepo,
+    FavoritesRepo,
+    FeedbackRepo,
+    RecsRepo,
+    get_session_factory,
+)
 
 router = Router(name="flow")
 logger = get_logger(__name__)
@@ -142,7 +150,7 @@ async def handle_pace_selection(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data.startswith("f:"))
 async def handle_format_selection(callback: CallbackQuery) -> None:
-    """Handle format selection (Q3) - finalize and get recommendation."""
+    """Handle format selection (Q3) - show hint question."""
     await safe_answer_callback(callback)
 
     if not callback.message or not callback.from_user or not callback.data:
@@ -173,18 +181,125 @@ async def handle_format_selection(callback: CallbackQuery) -> None:
         await _restart_flow(callback)
         return
 
-    # Finalize answers
-    answers = {
+    # Store answers in session
+    session = flow_sessions.get_or_create(user_id)
+    session.answers = {
         "state": state,
         "pace": pace,
         "format": format_choice,
     }
+    session.awaiting_hint = True
 
-    # Store in session
-    session = flow_sessions.get_or_create(user_id)
-    session.answers = answers
+    logger.info(f"User {user_id} selected format: {format_choice}, showing hint question")
 
-    logger.info(f"User {user_id} completed flow: {answers}")
+    # Send hint question (Q4) instead of recommendation
+    await safe_send_message(
+        bot=callback.bot,
+        chat_id=callback.message.chat.id,
+        text=question_hint(),
+        reply_markup=kb_hint(),
+    )
+
+
+@router.callback_query(F.data == "n:skip_hint")
+async def handle_skip_hint(callback: CallbackQuery) -> None:
+    """Handle 'Skip' button on hint question - proceed without hint."""
+    await safe_answer_callback(callback)
+
+    if not callback.message or not callback.from_user:
+        return
+
+    user_id = str(callback.from_user.id)
+
+    session = flow_sessions.get(user_id)
+    if not session or not session.answers:
+        await _restart_flow(callback)
+        return
+
+    session.awaiting_hint = False
+    session.hint = None
+
+    logger.info(f"User {user_id} skipped hint")
+
+    await _get_and_send_recommendation(
+        bot=callback.bot,
+        chat_id=callback.message.chat.id,
+        user_id=user_id,
+    )
+
+
+async def _is_awaiting_hint(message: Message) -> bool:
+    """Filter: only match if user is in awaiting_hint state."""
+    if not message.from_user:
+        return False
+    user_id = str(message.from_user.id)
+    session = flow_sessions.get(user_id)
+    return bool(session and session.awaiting_hint)
+
+
+@router.message(F.text, _is_awaiting_hint)
+async def handle_hint_text(message: Message) -> None:
+    """Handle free-text hint input from user."""
+    if not message.from_user or not message.text:
+        return
+
+    user_id = str(message.from_user.id)
+
+    session = flow_sessions.get(user_id)
+    if not session:
+        return
+
+    hint = message.text.strip()
+    if len(hint) > 200:
+        hint = hint[:200]
+
+    session.hint = hint
+    session.awaiting_hint = False
+
+    logger.info(f"User {user_id} provided hint: {hint[:50]}...")
+
+    await _get_and_send_recommendation(
+        bot=message.bot,
+        chat_id=message.chat.id,
+        user_id=user_id,
+    )
+
+
+async def _get_and_send_recommendation(
+    bot,
+    chat_id: int,
+    user_id: str,
+    mode: str = "normal",
+    exclude_item_ids: set[str] | None = None,
+    last_context: dict | None = None,
+    delta_prefix: str | None = None,
+) -> None:
+    """Shared logic: get recommendation and send it to user.
+
+    Args:
+        bot: Bot instance
+        chat_id: Chat ID to send to
+        user_id: User ID
+        mode: Recommendation mode
+        exclude_item_ids: Item IDs to exclude
+        last_context: Previous rec context (for "another" mode)
+        delta_prefix: Optional text prefix (delta explainer)
+    """
+    session = flow_sessions.get(user_id)
+    if not session or not session.answers:
+        await safe_send_message(
+            bot=bot,
+            chat_id=chat_id,
+            text=flow_expired(),
+            reply_markup=kb_restart(),
+        )
+        return
+
+    answers = session.answers.copy()
+
+    # Include hint in answers if present
+    if session.hint:
+        answers["hint"] = session.hint
 
     # Get ref info if available
     ref_info = flow_sessions.get_ref(user_id)
@@ -193,31 +308,39 @@ async def handle_format_selection(callback: CallbackQuery) -> None:
     async with session_factory() as db_session:
         events_repo = EventsRepo(db_session)
 
-        # Log answers submitted
-        payload = {**answers}
-        if ref_info:
-            payload["ref_post_id"] = ref_info.get("post_id")
-            payload["ref_variant_id"] = ref_info.get("variant_id")
+        # Log answers submitted (only for normal mode)
+        if mode == "normal":
+            payload = {**answers}
+            if ref_info:
+                payload["ref_post_id"] = ref_info.get("post_id")
+                payload["ref_variant_id"] = ref_info.get("variant_id")
 
-        await events_repo.log_event(
-            event_name="answers_submitted",
-            user_id=user_id,
-            payload=payload,
-        )
+            await events_repo.log_event(
+                event_name="answers_submitted",
+                user_id=user_id,
+                payload=payload,
+            )
 
         # Get recommendation
         result = await get_recommendation(
             session=db_session,
             user_id=user_id,
             answers=answers,
-            mode="normal",
+            mode=mode,
+            exclude_item_ids=exclude_item_ids,
+            last_context=last_context,
         )
 
         if not result:
+            text = (
+                "Більше варіантів немає. Повертайся пізніше!"
+                if mode == "another"
+                else "На жаль, зараз не знайшов нічого підходящого. Спробуй пізніше!"
+            )
             await safe_send_message(
-                bot=callback.bot,
-                chat_id=callback.message.chat.id,
-                text="На жаль, зараз не знайшов нічого підходящого. Спробуй пізніше!",
+                bot=bot,
+                chat_id=chat_id,
+                text=text,
                 reply_markup=kb_restart(),
             )
             return
@@ -233,8 +356,8 @@ async def handle_format_selection(callback: CallbackQuery) -> None:
             payload={
                 "item_id": result.item_id,
                 "title": result.title,
-                "mode": "normal",
-                "selector_meta": {},  # Placeholder for future
+                "mode": mode,
+                "selector_meta": {},
             },
         )
 
@@ -242,7 +365,7 @@ async def handle_format_selection(callback: CallbackQuery) -> None:
     rationale = await proofread(result.rationale)
     when_to_watch = await proofread(result.when_to_watch)
 
-    # Send recommendation with poster if available
+    # Build message
     message_text = recommendation_message(
         title=result.title,
         rationale=rationale,
@@ -250,10 +373,17 @@ async def handle_format_selection(callback: CallbackQuery) -> None:
         rating=result.rating,
     )
 
+    # Prepend delta explainer if present
+    if delta_prefix:
+        message_text = f"<i>{delta_prefix}</i>\n\n{message_text}"
+    elif hasattr(result, "delta_explainer") and result.delta_explainer:
+        message_text = f"<i>{result.delta_explainer}</i>\n\n{message_text}"
+
+    # Send recommendation with poster if available
     if result.poster_url:
         await safe_send_photo(
-            bot=callback.bot,
-            chat_id=callback.message.chat.id,
+            bot=bot,
+            chat_id=chat_id,
             photo=result.poster_url,
             caption=message_text,
             reply_markup=kb_recommendation(result.rec_id),
@@ -261,8 +391,8 @@ async def handle_format_selection(callback: CallbackQuery) -> None:
         )
     else:
         await safe_send_message(
-            bot=callback.bot,
-            chat_id=callback.message.chat.id,
+            bot=bot,
+            chat_id=chat_id,
             text=message_text,
             reply_markup=kb_recommendation(result.rec_id),
         )
@@ -385,11 +515,8 @@ async def handle_nav_another(callback: CallbackQuery) -> None:
     # Get last answers from session
     session = flow_sessions.get(user_id)
     if not session or not session.answers:
-        # No session, restart flow
         await _restart_flow(callback)
         return
-
-    answers = session.answers
 
     # Get last rec to exclude
     rec_session = rec_sessions.get(user_id)
@@ -397,12 +524,10 @@ async def handle_nav_another(callback: CallbackQuery) -> None:
     if rec_session and rec_session.last_item_id:
         exclude_ids.add(rec_session.last_item_id)
 
+    # Get last context for another-but-different
+    last_context = None
     session_factory = get_session_factory()
     async with session_factory() as db_session:
-        events_repo = EventsRepo(db_session)
-
-        # Get last context for another-but-different
-        last_context = None
         if rec_session and rec_session.last_rec_id:
             recs_repo = RecsRepo(db_session)
             last_rec = await recs_repo.get_rec(rec_session.last_rec_id)
@@ -412,73 +537,14 @@ async def handle_nav_another(callback: CallbackQuery) -> None:
                 except json.JSONDecodeError:
                     pass
 
-        # Get new recommendation
-        result = await get_recommendation(
-            session=db_session,
-            user_id=user_id,
-            answers=answers,
-            mode="another",
-            exclude_item_ids=exclude_ids,
-            last_context=last_context,
-        )
-
-        if not result:
-            await safe_send_message(
-                bot=callback.bot,
-                chat_id=callback.message.chat.id,
-                text="Більше варіантів немає. Повертайся пізніше!",
-                reply_markup=kb_restart(),
-            )
-            return
-
-        # Store rec info
-        rec_sessions.set_last_rec(user_id, result.rec_id, result.item_id)
-
-        # Log event
-        await events_repo.log_event(
-            event_name="recommendation_shown",
-            user_id=user_id,
-            rec_id=result.rec_id,
-            payload={
-                "item_id": result.item_id,
-                "title": result.title,
-                "mode": "another",
-            },
-        )
-
-    # Proofread Ukrainian text fields
-    rationale = await proofread(result.rationale)
-    when_to_watch = await proofread(result.when_to_watch)
-
-    # Build message with optional delta explainer
-    message_text = recommendation_message(
-        title=result.title,
-        rationale=rationale,
-        when_to_watch=when_to_watch,
-        rating=result.rating,
+    await _get_and_send_recommendation(
+        bot=callback.bot,
+        chat_id=callback.message.chat.id,
+        user_id=user_id,
+        mode="another",
+        exclude_item_ids=exclude_ids,
+        last_context=last_context,
     )
-
-    # Prepend delta explainer if present
-    if hasattr(result, "delta_explainer") and result.delta_explainer:
-        message_text = f"<i>{result.delta_explainer}</i>\n\n{message_text}"
-
-    # Send new recommendation with poster if available
-    if result.poster_url:
-        await safe_send_photo(
-            bot=callback.bot,
-            chat_id=callback.message.chat.id,
-            photo=result.poster_url,
-            caption=message_text,
-            reply_markup=kb_recommendation(result.rec_id),
-            parse_mode="HTML",
-        )
-    else:
-        await safe_send_message(
-            bot=callback.bot,
-            chat_id=callback.message.chat.id,
-            text=message_text,
-            reply_markup=kb_recommendation(result.rec_id),
-        )
 
 
 @router.callback_query(F.data == "n:done")

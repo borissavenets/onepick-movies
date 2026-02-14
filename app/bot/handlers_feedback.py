@@ -120,7 +120,9 @@ async def handle_another(callback: CallbackQuery) -> None:
         await _send_restart(callback)
         return
 
-    answers = flow_session.answers
+    answers = flow_session.answers.copy()
+    if flow_session.hint:
+        answers["hint"] = flow_session.hint
 
     # Get current item to exclude
     rec_session = rec_sessions.get(user_id)
@@ -306,7 +308,9 @@ async def handle_miss_reason(callback: CallbackQuery) -> None:
         await _send_restart(callback)
         return
 
-    answers = flow_session.answers
+    answers = flow_session.answers.copy()
+    if flow_session.hint:
+        answers["hint"] = flow_session.hint
 
     # Get current item to exclude
     rec_session = rec_sessions.get(user_id)
@@ -425,7 +429,9 @@ async def handle_seen(callback: CallbackQuery) -> None:
         await _send_restart(callback)
         return
 
-    answers = flow_session.answers
+    answers = flow_session.answers.copy()
+    if flow_session.hint:
+        answers["hint"] = flow_session.hint
 
     session_factory = get_session_factory()
     async with session_factory() as session:

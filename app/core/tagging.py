@@ -1,7 +1,8 @@
 """Tag parsing and matching logic for recommendations."""
 
 import json
-from typing import Any, Literal
+from dataclasses import dataclass
+from typing import Any
 
 # Normalized tag keys
 PACE_VALUES = ("slow", "fast")
@@ -269,3 +270,181 @@ def context_key_partial(state: str | None = None, pace: str | None = None, fmt: 
     if fmt:
         parts.append(f"format:{fmt}")
     return "|".join(parts)
+
+
+# --- Hint parsing ---
+
+# UA/EN keyword -> answer overrides and search keywords
+# Each entry: (keywords_set, overrides_dict, search_terms)
+HINT_GENRE_MAP: list[tuple[set[str], dict[str, str], set[str]]] = [
+    # Detective / Crime
+    (
+        {"детектив", "detective", "кримінал", "crime", "розслідування"},
+        {"state": "heavy", "pace": "slow"},
+        {"dark", "mysterious", "tense"},
+    ),
+    # Action
+    (
+        {"екшн", "action", "бойовик", "бій", "стрілянина"},
+        {"state": "escape", "pace": "fast"},
+        {"adventure", "thrilling"},
+    ),
+    # Comedy
+    (
+        {"комедія", "comedy", "смішне", "смішний", "веселе", "веселий"},
+        {"state": "light", "pace": "fast"},
+        {"funny", "warm"},
+    ),
+    # Drama
+    (
+        {"драма", "drama", "драматичне", "драматичний"},
+        {"state": "heavy", "pace": "slow"},
+        {"melancholy", "emotional"},
+    ),
+    # Horror / Thriller
+    (
+        {"хорор", "horror", "жахи", "страшне", "трилер", "thriller"},
+        {"state": "heavy", "pace": "fast"},
+        {"dark", "tense"},
+    ),
+    # Romance
+    (
+        {"романтика", "romance", "романтичне", "кохання", "love"},
+        {"state": "light", "pace": "slow"},
+        {"warm", "romantic"},
+    ),
+    # Fantasy / Sci-fi
+    (
+        {"фантастика", "fantasy", "фентезі", "sci-fi", "наукова фантастика", "космос"},
+        {"state": "escape"},
+        {"weird", "adventure"},
+    ),
+    # Animation
+    (
+        {"мультфільм", "мультик", "анімація", "animation", "anime", "аніме"},
+        {"state": "light"},
+        {"cozy", "warm"},
+    ),
+    # Korean
+    (
+        {"корейське", "корейська", "корейський", "korean", "k-drama", "кдрама", "дорама"},
+        {},
+        set(),
+    ),
+    # Chinese
+    (
+        {"китайське", "китайська", "китайський", "chinese", "china"},
+        {},
+        set(),
+    ),
+    # Documentary
+    (
+        {"документальне", "документалка", "documentary"},
+        {"state": "heavy", "pace": "slow"},
+        {"thought-provoking"},
+    ),
+    # Slow / contemplative
+    (
+        {"повільне", "повільний", "спокійне", "вдумливе"},
+        {"pace": "slow"},
+        set(),
+    ),
+    # Dynamic / fast
+    (
+        {"динамічне", "динамічний", "швидке", "драйв", "адреналін"},
+        {"pace": "fast"},
+        set(),
+    ),
+]
+
+# Pace keywords (explicit override)
+HINT_PACE_KEYWORDS: dict[str, str] = {
+    "повільне": "slow", "повільний": "slow", "спокійне": "slow",
+    "вдумливе": "slow", "неквапливе": "slow",
+    "динамічне": "fast", "динамічний": "fast", "швидке": "fast",
+    "швидкий": "fast", "драйв": "fast", "екшн": "fast",
+}
+
+
+@dataclass
+class HintResult:
+    """Parsed hint data."""
+
+    overrides: dict[str, str]  # state/pace/format overrides
+    tone_keywords: set[str]  # tone tags to boost
+    search_words: list[str]  # raw words for title matching
+
+
+def parse_hint(hint: str | None) -> HintResult:
+    """Parse free-text hint into overrides and search keywords.
+
+    Args:
+        hint: User's free-text hint (UA or EN)
+
+    Returns:
+        HintResult with overrides, tone keywords, and search words
+    """
+    if not hint or not hint.strip():
+        return HintResult(overrides={}, tone_keywords=set(), search_words=[])
+
+    text = hint.lower().strip()
+    words = text.split()
+
+    overrides: dict[str, str] = {}
+    tone_keywords: set[str] = set()
+
+    # Match against genre map
+    for keywords, genre_overrides, tones in HINT_GENRE_MAP:
+        if any(w in keywords for w in words) or any(kw in text for kw in keywords if " " in kw):
+            overrides.update(genre_overrides)
+            tone_keywords.update(tones)
+
+    # Extract meaningful search words (skip short/common words)
+    stop_words = {
+        "щось", "як", "на", "з", "із", "та", "і", "або", "чи",
+        "схоже", "подібне", "типу", "класний", "класне", "класна",
+        "гарний", "гарне", "гарна", "крутий", "круте", "крута",
+        "хороший", "хороше", "хороша", "цікавий", "цікаве", "цікава",
+        "something", "like", "similar", "good", "cool", "nice", "great",
+        "want", "хочу", "хочеться", "давай", "може", "можливо",
+        "про", "about", "with",
+    }
+    search_words = [w for w in words if len(w) >= 3 and w not in stop_words]
+
+    return HintResult(overrides=overrides, tone_keywords=tone_keywords, search_words=search_words)
+
+
+def hint_match_score(
+    item_title: str,
+    item_tags: dict[str, Any] | None,
+    hint_result: HintResult,
+) -> float:
+    """Calculate bonus score for hint keyword matches.
+
+    Args:
+        item_title: Item title for keyword matching
+        item_tags: Parsed item tags
+        hint_result: Parsed hint data
+
+    Returns:
+        Bonus score (0.0 to 5.0)
+    """
+    if not hint_result.search_words and not hint_result.tone_keywords:
+        return 0.0
+
+    score = 0.0
+    title_lower = item_title.lower()
+
+    # Title keyword match (+3.0 per match, priority)
+    for word in hint_result.search_words:
+        if word in title_lower:
+            score += 3.0
+
+    # Tone keyword match against item tags (+1.5 per match)
+    if item_tags and hint_result.tone_keywords:
+        item_tones = normalize_tone(item_tags.get("tone"))
+        for tone in hint_result.tone_keywords:
+            if tone in item_tones:
+                score += 1.5
+
+    return min(score, 5.0)

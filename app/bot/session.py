@@ -12,6 +12,8 @@ class UserSession:
     user_id: str
     created_at: float = field(default_factory=time.time)
     answers: dict[str, str] = field(default_factory=dict)
+    hint: str | None = None
+    awaiting_hint: bool = False
     last_rec_id: str | None = None
     last_item_id: str | None = None
     last_ref: dict[str, str] | None = None  # Deep-link ref info
@@ -76,6 +78,8 @@ class SessionStore:
         session = self.get(user_id)
         if session:
             session.answers = {}
+            session.hint = None
+            session.awaiting_hint = False
             session.created_at = time.time()
 
     def _cleanup_expired(self) -> None:

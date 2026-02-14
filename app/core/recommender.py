@@ -20,8 +20,10 @@ from app.core.rationale import (
 from app.core.tagging import (
     context_key,
     get_tone_bucket,
+    hint_match_score,
     match_score,
     normalize_pace,
+    parse_hint,
     parse_tags,
 )
 from app.logging import get_logger
@@ -147,6 +149,12 @@ async def get_recommendation(
     # Ensure user exists and update last_seen
     await users_repo.ensure_user(user_id)
 
+    # Parse hint and apply overrides (hint has priority over button answers)
+    hint_text = answers.get("hint")
+    hint_result = parse_hint(hint_text)
+    if hint_result.overrides:
+        answers = {**answers, **hint_result.overrides}
+
     # Get item type from format
     item_type = answers.get("format", "movie")
     if item_type not in ("movie", "series"):
@@ -186,7 +194,7 @@ async def get_recommendation(
     user_weight = await get_user_weight(session, user_id, effective_answers)
 
     scored = await _score_candidates(
-        candidates, effective_answers, user_weight, rng
+        candidates, effective_answers, user_weight, rng, hint_result
     )
 
     if not scored:
@@ -206,6 +214,8 @@ async def get_recommendation(
         "selected_score": selected.score,
         "tone_bucket": get_tone_bucket(selected.tags, effective_answers.get("state", "escape")),
     }
+    if hint_text:
+        context["hint"] = hint_text
     if delta_info:
         context["delta"] = delta_info
 
@@ -371,6 +381,7 @@ async def _score_candidates(
     answers: dict[str, str],
     user_weight: int,
     rng: random.Random,
+    hint_result=None,
 ) -> list[ScoredCandidate]:
     """Score all candidates.
 
@@ -379,12 +390,14 @@ async def _score_candidates(
     - + match_score (tag matching)
     - + weight_bonus (user learning)
     - + novelty_bonus (small random variation)
+    - + hint_bonus (keyword matching from user hint)
 
     Args:
         candidates: List of candidate items
         answers: User answers
         user_weight: User's weight for this context
         rng: Seeded random generator
+        hint_result: Parsed hint data (optional)
 
     Returns:
         List of scored candidates, sorted by score descending
@@ -408,8 +421,13 @@ async def _score_candidates(
         # Calculate novelty bonus
         n_bonus = _compute_novelty_bonus(item, rng)
 
+        # Calculate hint bonus
+        h_bonus = 0.0
+        if hint_result:
+            h_bonus = hint_match_score(item.title, tags, hint_result)
+
         # Total score
-        total = item.base_score + m_score + w_bonus + n_bonus
+        total = item.base_score + m_score + w_bonus + n_bonus + h_bonus
 
         scored.append(
             ScoredCandidate(

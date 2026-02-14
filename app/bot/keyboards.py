@@ -82,6 +82,15 @@ def kb_format(state: str, pace: str) -> InlineKeyboardMarkup:
     )
 
 
+def kb_hint() -> InlineKeyboardMarkup:
+    """Hint step keyboard with skip button."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Пропустити", callback_data="n:skip_hint")]
+        ]
+    )
+
+
 def kb_recommendation(rec_id: str) -> InlineKeyboardMarkup:
     """Recommendation action keyboard.
 
