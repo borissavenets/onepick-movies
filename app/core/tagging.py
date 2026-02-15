@@ -357,6 +357,62 @@ HINT_GENRE_MAP: list[tuple[set[str], dict[str, str], set[str]]] = [
     ),
 ]
 
+# UA -> EN translation map for hint search words (overview/genres/credits are in English)
+HINT_TRANSLATE_MAP: dict[str, list[str]] = {
+    # Nature / setting
+    "море": ["sea", "ocean", "maritime", "naval", "sailing", "underwater"],
+    "океан": ["ocean", "sea", "deep sea"],
+    "космос": ["space", "universe", "galaxy", "astronaut", "interstellar"],
+    "пустеля": ["desert", "sahara", "wasteland"],
+    "ліс": ["forest", "woods", "jungle"],
+    "гори": ["mountain", "mountains", "climb", "alpine"],
+    "острів": ["island", "stranded", "shipwreck"],
+    "місто": ["city", "urban", "metropolitan"],
+    # War / conflict
+    "війна": ["war", "battle", "military", "combat", "soldier"],
+    "армія": ["army", "military", "soldier", "troops"],
+    # Themes
+    "кохання": ["love", "romance", "romantic", "passion"],
+    "дружба": ["friendship", "friend", "buddy"],
+    "сім'я": ["family", "father", "mother", "parent"],
+    "помста": ["revenge", "vengeance", "avenge"],
+    "зрада": ["betrayal", "betray", "treachery"],
+    "виживання": ["survival", "survive", "survivor"],
+    "подорож": ["journey", "travel", "road trip", "adventure"],
+    "пригоди": ["adventure", "quest", "expedition"],
+    "загадка": ["mystery", "puzzle", "enigma"],
+    "привиди": ["ghost", "haunted", "supernatural", "spirit"],
+    "зомбі": ["zombie", "undead", "apocalypse"],
+    "вампір": ["vampire", "blood", "dracula"],
+    "робот": ["robot", "android", "artificial intelligence", "ai"],
+    "магія": ["magic", "wizard", "sorcery", "witch"],
+    "дракон": ["dragon", "dragons"],
+    "пірат": ["pirate", "pirates", "buccaneer"],
+    "спорт": ["sport", "athlete", "championship", "tournament"],
+    "музика": ["music", "musician", "band", "concert", "singer"],
+    "танці": ["dance", "dancing", "dancer", "ballet"],
+    "школа": ["school", "student", "teacher", "classroom"],
+    "тюрма": ["prison", "jail", "inmate", "escape"],
+    "поліція": ["police", "cop", "detective", "investigation"],
+    "мафія": ["mafia", "mob", "gangster", "crime boss"],
+    "хакер": ["hacker", "hacking", "cyber", "computer"],
+    "шпигун": ["spy", "espionage", "agent", "intelligence"],
+    # Time / era
+    "середньовіччя": ["medieval", "middle ages", "knight", "castle"],
+    "майбутнє": ["future", "futuristic", "dystopia", "sci-fi"],
+    "минуле": ["past", "historical", "period"],
+    # Animals
+    "тварини": ["animal", "animals", "wildlife"],
+    "собака": ["dog", "canine", "puppy"],
+    "кіт": ["cat", "feline", "kitten"],
+    "динозавр": ["dinosaur", "prehistoric", "jurassic"],
+    # People / professions
+    "лікар": ["doctor", "hospital", "medical", "surgeon"],
+    "вчитель": ["teacher", "school", "education"],
+    "адвокат": ["lawyer", "attorney", "court", "trial", "legal"],
+    "злодій": ["thief", "heist", "robbery", "steal"],
+}
+
 # Pace keywords (explicit override)
 HINT_PACE_KEYWORDS: dict[str, str] = {
     "повільне": "slow", "повільний": "slow", "спокійне": "slow",
@@ -412,7 +468,16 @@ def parse_hint(hint: str | None) -> HintResult:
     }
     search_words = [w for w in words if len(w) >= 3 and w not in stop_words]
 
-    return HintResult(overrides=overrides, tone_keywords=tone_keywords, search_words=search_words)
+    # Expand UA words with EN translations for matching against English TMDB data
+    expanded: list[str] = []
+    for w in search_words:
+        expanded.append(w)
+        if w in HINT_TRANSLATE_MAP:
+            expanded.extend(HINT_TRANSLATE_MAP[w])
+
+    return HintResult(
+        overrides=overrides, tone_keywords=tone_keywords, search_words=expanded
+    )
 
 
 def hint_match_score(
