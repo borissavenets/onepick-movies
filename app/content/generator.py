@@ -192,9 +192,9 @@ async def _try_llm_generate(
     Returns generated text or None if LLM is unavailable/fails.
     """
     try:
-        from app.llm.openai_adapter import LLMDisabledError, generate_text
+        from app.llm.llm_adapter import LLMDisabledError, generate_text
     except ImportError:
-        logger.warning("OpenAI adapter not available")
+        logger.warning("LLM adapter not available")
         return None
 
     fmt = FORMATS.get(format_id)

@@ -28,7 +28,7 @@ async def proofread(text: str) -> str:
         return text
 
     try:
-        from app.llm.openai_adapter import LLMDisabledError, generate_text
+        from app.llm.llm_adapter import LLMDisabledError, generate_text
 
         result = await generate_text(
             system_prompt=_PROOFREAD_SYSTEM,

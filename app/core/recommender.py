@@ -25,6 +25,7 @@ from app.core.tagging import (
     normalize_pace,
     parse_hint,
     parse_tags,
+    translate_hint_keywords,
 )
 from app.logging import get_logger
 from app.storage import EventsRepo, ItemsRepo, RecsRepo, UsersRepo
@@ -152,6 +153,13 @@ async def get_recommendation(
     # Parse hint and apply overrides (hint has priority over button answers)
     hint_text = answers.get("hint")
     hint_result = parse_hint(hint_text)
+
+    # LLM-translate UA hint to EN keywords for TMDB matching
+    if hint_text:
+        en_keywords = await translate_hint_keywords(hint_text)
+        if en_keywords:
+            hint_result.search_words.extend(en_keywords)
+
     if hint_result.overrides:
         answers = {**answers, **hint_result.overrides}
 
