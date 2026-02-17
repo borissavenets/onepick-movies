@@ -159,6 +159,10 @@ async def get_recommendation(
         llm_keywords = await translate_hint_keywords(hint_text)
         if llm_keywords:
             hint_result.llm_keywords = llm_keywords
+        logger.info(
+            f"Hint: '{hint_text}' -> search_words={hint_result.search_words}, "
+            f"llm_keywords={hint_result.llm_keywords}, overrides={hint_result.overrides}"
+        )
 
     if hint_result.overrides:
         answers = {**answers, **hint_result.overrides}
@@ -457,6 +461,15 @@ async def _score_candidates(
 
     # Sort by score descending
     scored.sort(key=lambda x: x.score, reverse=True)
+
+    # Log top candidates when hint is active
+    if hint_result and hint_result.llm_keywords and scored:
+        top5 = scored[:5]
+        for s in top5:
+            logger.info(
+                f"  candidate: {s.item.title} score={s.score:.1f} "
+                f"(base={s.item.base_score:.1f} match={s.match_score:.1f} hint={s.score - s.item.base_score - s.match_score - s.weight_bonus - s.novelty_bonus:.1f})"
+            )
 
     return scored
 
