@@ -507,14 +507,14 @@ def hint_match_score(
     # Below: only LLM keywords (proper word forms for both UA and EN)
     llm_words = hint_result.llm_keywords
     if not llm_words:
-        return min(score, 8.0)
+        return min(score, 12.0)
 
-    # Overview keyword match (+1.0 per word)
+    # Overview keyword match (+2.0 per word)
     if overview:
         overview_lower = overview.lower()
         for word in llm_words:
             if word in overview_lower:
-                score += 1.0
+                score += 2.0
 
     # Genre keyword match (+2.0 per word)
     if genres_json:
@@ -536,4 +536,4 @@ def hint_match_score(
         except (json.JSONDecodeError, TypeError):
             pass
 
-    return min(score, 8.0)
+    return min(score, 12.0)
