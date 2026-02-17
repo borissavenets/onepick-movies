@@ -50,6 +50,16 @@ def upgrade() -> None:
             "items",
             sa.Column("updated_at", sa.DateTime(), nullable=True),
         )
+    if not _has_column("items", "poster_url"):
+        op.add_column(
+            "items",
+            sa.Column("poster_url", sa.Text(), nullable=True),
+        )
+    if not _has_column("items", "vote_average"):
+        op.add_column(
+            "items",
+            sa.Column("vote_average", sa.Float(), nullable=True),
+        )
 
     # Backfill existing rows
     op.execute(
