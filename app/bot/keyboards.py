@@ -108,7 +108,7 @@ def kb_recommendation(rec_id: str) -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(text="✅ Влучив", callback_data=f"a:hit|{short_id}"),
                 InlineKeyboardButton(text="🔁 Ще", callback_data=f"a:another|{short_id}"),
-                InlineKeyboardButton(text="❌ Мимо", callback_data=f"a:miss|{short_id}"),
+                InlineKeyboardButton(text="🔄 Спочатку", callback_data="n:pick"),
             ],
             [
                 InlineKeyboardButton(text="⭐ В обране", callback_data=f"a:fav|{short_id}"),
