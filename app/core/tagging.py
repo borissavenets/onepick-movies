@@ -397,6 +397,14 @@ def parse_hint(hint: str | None) -> HintResult:
     overrides: dict[str, str] = {}
     tone_keywords: set[str] = set()
 
+    # Format override from hint text
+    series_words = {"серіал", "серіали", "series", "show", "шоу", "дорама"}
+    movie_words = {"фільм", "фільми", "movie", "кіно"}
+    if any(w in series_words for w in words):
+        overrides["format"] = "series"
+    elif any(w in movie_words for w in words):
+        overrides["format"] = "movie"
+
     # Match against genre map
     for keywords, genre_overrides, tones in HINT_GENRE_MAP:
         if any(w in keywords for w in words) or any(kw in text for kw in keywords if " " in kw):
