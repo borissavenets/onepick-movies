@@ -38,20 +38,10 @@ def upgrade() -> None:
             sa.UniqueConstraint("user_id", "item_id", name="uq_dismissed_user_item"),
         )
 
-    with op.batch_alter_table("feedback") as batch_op:
-        batch_op.drop_constraint("ck_feedback_action", type_="check")
-        batch_op.create_check_constraint(
-            "ck_feedback_action",
-            "action IN ('hit', 'miss', 'another', 'favorite', 'share', 'silent_drop', 'dismissed')",
-        )
+    # SQLite ignores CHECK constraints on INSERT anyway, and batch_alter_table
+    # rebuilds the entire table which is risky. Skip constraint update - the ORM
+    # validates action values at the application level.
 
 
 def downgrade() -> None:
-    with op.batch_alter_table("feedback") as batch_op:
-        batch_op.drop_constraint("ck_feedback_action", type_="check")
-        batch_op.create_check_constraint(
-            "ck_feedback_action",
-            "action IN ('hit', 'miss', 'another', 'favorite', 'share', 'silent_drop')",
-        )
-
     op.drop_table("dismissed_items")

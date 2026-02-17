@@ -57,13 +57,19 @@ def upgrade() -> None:
         "WHERE source = 'curated' AND updated_at IS NULL"
     )
 
-    # Make updated_at NOT NULL after backfill
-    with op.batch_alter_table("items") as batch_op:
-        batch_op.alter_column(
-            "updated_at",
-            existing_type=sa.DateTime(),
-            nullable=False,
-        )
+    # Make updated_at NOT NULL (skip if already NOT NULL to avoid table rebuild)
+    conn = op.get_bind()
+    insp = sa.inspect(conn)
+    for col in insp.get_columns("items"):
+        if col["name"] == "updated_at" and col["nullable"] is False:
+            break
+    else:
+        with op.batch_alter_table("items") as batch_op:
+            batch_op.alter_column(
+                "updated_at",
+                existing_type=sa.DateTime(),
+                nullable=False,
+            )
 
     # Create index (ignore if exists)
     try:
