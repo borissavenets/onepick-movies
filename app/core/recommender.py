@@ -213,8 +213,10 @@ async def get_recommendation(
         logger.warning(f"No valid scored candidates for user={user_id}")
         return None
 
-    # Epsilon-greedy selection
+    # Epsilon-greedy selection (reduce exploration when user gave a specific hint)
     epsilon = config.recs_epsilon
+    if hint_result and hint_result.llm_keywords:
+        epsilon = min(epsilon, 0.05)
     selected = _epsilon_greedy_select(scored, epsilon, rng)
 
     # Build context
