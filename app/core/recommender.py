@@ -280,6 +280,7 @@ async def get_recommendation(
         delta_explainer=delta_explainer,
         meta={
             "mode": mode,
+            "item_type": item_type,
             "epsilon_used": epsilon,
             "candidate_count": len(scored),
             "source_mix": {"curated": curated_count, "tmdb": tmdb_count},

@@ -220,7 +220,7 @@ async def handle_another(callback: CallbackQuery) -> None:
             chat_id=callback.message.chat.id,
             photo=result.poster_url,
             caption=message_text,
-            reply_markup=kb_recommendation(result.rec_id),
+            reply_markup=kb_recommendation(result.rec_id, result.title, result.meta.get("item_type", "movie")),
             parse_mode="HTML",
         )
     else:
@@ -228,7 +228,7 @@ async def handle_another(callback: CallbackQuery) -> None:
             bot=callback.bot,
             chat_id=callback.message.chat.id,
             text=message_text,
-            reply_markup=kb_recommendation(result.rec_id),
+            reply_markup=kb_recommendation(result.rec_id, result.title, result.meta.get("item_type", "movie")),
         )
 
 
@@ -389,7 +389,7 @@ async def handle_miss_reason(callback: CallbackQuery) -> None:
             chat_id=callback.message.chat.id,
             photo=result.poster_url,
             caption=message_text,
-            reply_markup=kb_recommendation(result.rec_id),
+            reply_markup=kb_recommendation(result.rec_id, result.title, result.meta.get("item_type", "movie")),
             parse_mode="HTML",
         )
     else:
@@ -397,7 +397,7 @@ async def handle_miss_reason(callback: CallbackQuery) -> None:
             bot=callback.bot,
             chat_id=callback.message.chat.id,
             text=message_text,
-            reply_markup=kb_recommendation(result.rec_id),
+            reply_markup=kb_recommendation(result.rec_id, result.title, result.meta.get("item_type", "movie")),
         )
 
 
@@ -513,7 +513,7 @@ async def handle_seen(callback: CallbackQuery) -> None:
             chat_id=callback.message.chat.id,
             photo=result.poster_url,
             caption=message_text,
-            reply_markup=kb_recommendation(result.rec_id),
+            reply_markup=kb_recommendation(result.rec_id, result.title, result.meta.get("item_type", "movie")),
             parse_mode="HTML",
         )
     else:
@@ -521,7 +521,7 @@ async def handle_seen(callback: CallbackQuery) -> None:
             bot=callback.bot,
             chat_id=callback.message.chat.id,
             text=message_text,
-            reply_markup=kb_recommendation(result.rec_id),
+            reply_markup=kb_recommendation(result.rec_id, result.title, result.meta.get("item_type", "movie")),
         )
 
 

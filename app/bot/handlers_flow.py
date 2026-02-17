@@ -386,7 +386,7 @@ async def _get_and_send_recommendation(
             chat_id=chat_id,
             photo=result.poster_url,
             caption=message_text,
-            reply_markup=kb_recommendation(result.rec_id),
+            reply_markup=kb_recommendation(result.rec_id, result.title, result.meta.get("item_type", "movie")),
             parse_mode="HTML",
         )
     else:
@@ -394,7 +394,7 @@ async def _get_and_send_recommendation(
             bot=bot,
             chat_id=chat_id,
             text=message_text,
-            reply_markup=kb_recommendation(result.rec_id),
+            reply_markup=kb_recommendation(result.rec_id, result.title, result.meta.get("item_type", "movie")),
         )
 
 

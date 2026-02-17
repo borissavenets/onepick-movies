@@ -91,17 +91,30 @@ def kb_hint() -> InlineKeyboardMarkup:
     )
 
 
-def kb_recommendation(rec_id: str) -> InlineKeyboardMarkup:
+def kb_recommendation(
+    rec_id: str, title: str = "", item_type: str = "movie",
+) -> InlineKeyboardMarkup:
     """Recommendation action keyboard.
 
     Args:
         rec_id: Recommendation ID (truncated for callback)
+        title: Item title for search URL
+        item_type: "movie" or "series"
 
     Returns:
         Action keyboard
     """
+    from urllib.parse import quote
+
     # Truncate rec_id to fit callback data limits (64 bytes max)
     short_id = rec_id[:8] if len(rec_id) > 8 else rec_id
+    type_label = "серіал" if item_type == "series" else "фільм"
+    search_query = f"{title} {type_label}" if title else None
+    search_url = f"https://www.google.com/search?q={quote(search_query)}" if search_query else None
+
+    row2 = [InlineKeyboardButton(text="⭐ В обране", callback_data=f"a:fav|{short_id}")]
+    if search_url:
+        row2.append(InlineKeyboardButton(text="🔍 Знайти", url=search_url))
 
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -110,10 +123,7 @@ def kb_recommendation(rec_id: str) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="🔁 Ще", callback_data=f"a:another|{short_id}"),
                 InlineKeyboardButton(text="🔄 Спочатку", callback_data="n:pick"),
             ],
-            [
-                InlineKeyboardButton(text="⭐ В обране", callback_data=f"a:fav|{short_id}"),
-                InlineKeyboardButton(text="📤 Поділитись", callback_data=f"a:share|{short_id}"),
-            ],
+            row2,
             [
                 InlineKeyboardButton(text="👁 Вже дивився", callback_data=f"a:seen|{short_id}"),
             ],
