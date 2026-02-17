@@ -18,36 +18,46 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def upgrade() -> None:
-    # Add new columns to items table
-    op.add_column(
-        "items",
-        sa.Column("source", sa.String(), nullable=False, server_default="curated"),
-    )
-    op.add_column(
-        "items",
-        sa.Column("source_id", sa.String(), nullable=True),
-    )
-    op.add_column(
-        "items",
-        sa.Column("tag_status", sa.String(), nullable=False, server_default="pending"),
-    )
-    op.add_column(
-        "items",
-        sa.Column("tag_version", sa.Integer(), nullable=False, server_default="1"),
-    )
-    op.add_column(
-        "items",
-        sa.Column("updated_at", sa.DateTime(), nullable=True),
-    )
+def _has_column(table: str, column: str) -> bool:
+    conn = op.get_bind()
+    insp = sa.inspect(conn)
+    return any(c["name"] == column for c in insp.get_columns(table))
 
-    # Update existing rows: set updated_at = created_at, tag_status = 'tagged' for curated
+
+def upgrade() -> None:
+    if not _has_column("items", "source"):
+        op.add_column(
+            "items",
+            sa.Column("source", sa.String(), nullable=False, server_default="curated"),
+        )
+    if not _has_column("items", "source_id"):
+        op.add_column(
+            "items",
+            sa.Column("source_id", sa.String(), nullable=True),
+        )
+    if not _has_column("items", "tag_status"):
+        op.add_column(
+            "items",
+            sa.Column("tag_status", sa.String(), nullable=False, server_default="pending"),
+        )
+    if not _has_column("items", "tag_version"):
+        op.add_column(
+            "items",
+            sa.Column("tag_version", sa.Integer(), nullable=False, server_default="1"),
+        )
+    if not _has_column("items", "updated_at"):
+        op.add_column(
+            "items",
+            sa.Column("updated_at", sa.DateTime(), nullable=True),
+        )
+
+    # Backfill existing rows
     op.execute(
-        "UPDATE items SET updated_at = created_at, tag_status = 'tagged' WHERE source = 'curated'"
+        "UPDATE items SET updated_at = created_at, tag_status = 'tagged' "
+        "WHERE source = 'curated' AND updated_at IS NULL"
     )
 
     # Make updated_at NOT NULL after backfill
-    # SQLite doesn't support ALTER COLUMN, so we use batch mode
     with op.batch_alter_table("items") as batch_op:
         batch_op.alter_column(
             "updated_at",
@@ -55,21 +65,21 @@ def upgrade() -> None:
             nullable=False,
         )
 
-    # Create index on (source, source_id) for lookups
-    # Note: Uniqueness is enforced at application level via item_id format
-    op.create_index(
-        "ix_items_source_source_id",
-        "items",
-        ["source", "source_id"],
-        unique=False,
-    )
+    # Create index (ignore if exists)
+    try:
+        op.create_index(
+            "ix_items_source_source_id",
+            "items",
+            ["source", "source_id"],
+            unique=False,
+        )
+    except Exception:
+        pass
 
 
 def downgrade() -> None:
-    # Drop index
     op.drop_index("ix_items_source_source_id", table_name="items")
 
-    # Remove columns (using batch mode for SQLite)
     with op.batch_alter_table("items") as batch_op:
         batch_op.drop_column("updated_at")
         batch_op.drop_column("tag_version")

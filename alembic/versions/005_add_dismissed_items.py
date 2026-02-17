@@ -18,25 +18,26 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def upgrade() -> None:
-    op.create_table(
-        "dismissed_items",
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("user_id", sa.String(), nullable=False),
-        sa.Column("item_id", sa.String(), nullable=False),
-        sa.Column("created_at", sa.DateTime(), nullable=False),
-        sa.PrimaryKeyConstraint("id"),
-        sa.ForeignKeyConstraint(["user_id"], ["users.user_id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["item_id"], ["items.item_id"]),
-        sa.UniqueConstraint("user_id", "item_id", name="uq_dismissed_user_item"),
-    )
+def _table_exists(name: str) -> bool:
+    conn = op.get_bind()
+    insp = sa.inspect(conn)
+    return name in insp.get_table_names()
 
-    # SQLite doesn't support ALTER CONSTRAINT, so we recreate the check
-    # constraint by creating a new table. However, SQLite also ignores
-    # CHECK constraints on ALTER, so for SQLite we rely on the ORM-level
-    # constraint. The new action value 'dismissed' will work because
-    # SQLite CHECK constraints from CREATE TABLE are already in place
-    # and we handle this via batch mode.
+
+def upgrade() -> None:
+    if not _table_exists("dismissed_items"):
+        op.create_table(
+            "dismissed_items",
+            sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+            sa.Column("user_id", sa.String(), nullable=False),
+            sa.Column("item_id", sa.String(), nullable=False),
+            sa.Column("created_at", sa.DateTime(), nullable=False),
+            sa.PrimaryKeyConstraint("id"),
+            sa.ForeignKeyConstraint(["user_id"], ["users.user_id"], ondelete="CASCADE"),
+            sa.ForeignKeyConstraint(["item_id"], ["items.item_id"]),
+            sa.UniqueConstraint("user_id", "item_id", name="uq_dismissed_user_item"),
+        )
+
     with op.batch_alter_table("feedback") as batch_op:
         batch_op.drop_constraint("ck_feedback_action", type_="check")
         batch_op.create_check_constraint(

@@ -18,11 +18,18 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _has_column(table: str, column: str) -> bool:
+    conn = op.get_bind()
+    insp = sa.inspect(conn)
+    return any(c["name"] == column for c in insp.get_columns(table))
+
+
 def upgrade() -> None:
-    op.add_column(
-        "posts",
-        sa.Column("meta_json", sa.Text(), nullable=False, server_default="{}"),
-    )
+    if not _has_column("posts", "meta_json"):
+        op.add_column(
+            "posts",
+            sa.Column("meta_json", sa.Text(), nullable=False, server_default="{}"),
+        )
 
 
 def downgrade() -> None:

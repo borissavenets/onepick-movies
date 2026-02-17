@@ -18,38 +18,46 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def upgrade() -> None:
-    op.create_table(
-        "daily_metrics",
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("date", sa.String(), nullable=False),
-        sa.Column("metric_name", sa.String(), nullable=False),
-        sa.Column("value", sa.Float(), nullable=False, server_default="0"),
-        sa.Column("updated_at", sa.DateTime(), nullable=False),
-        sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("date", "metric_name", name="uq_daily_metrics_date_name"),
-    )
-    op.create_index(
-        "ix_daily_metrics_name_date", "daily_metrics", ["metric_name", "date"]
-    )
+def _table_exists(name: str) -> bool:
+    conn = op.get_bind()
+    insp = sa.inspect(conn)
+    return name in insp.get_table_names()
 
-    op.create_table(
-        "alerts",
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("alert_type", sa.String(), nullable=False),
-        sa.Column(
-            "severity", sa.String(), nullable=False, server_default="warning"
-        ),
-        sa.Column("message", sa.Text(), nullable=False),
-        sa.Column("created_at", sa.DateTime(), nullable=False),
-        sa.Column("resolved_at", sa.DateTime(), nullable=True),
-        sa.PrimaryKeyConstraint("id"),
-        sa.CheckConstraint(
-            "severity IN ('info', 'warning', 'critical')",
-            name="ck_alerts_severity",
-        ),
-    )
-    op.create_index("ix_alerts_type_created", "alerts", ["alert_type", "created_at"])
+
+def upgrade() -> None:
+    if not _table_exists("daily_metrics"):
+        op.create_table(
+            "daily_metrics",
+            sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+            sa.Column("date", sa.String(), nullable=False),
+            sa.Column("metric_name", sa.String(), nullable=False),
+            sa.Column("value", sa.Float(), nullable=False, server_default="0"),
+            sa.Column("updated_at", sa.DateTime(), nullable=False),
+            sa.PrimaryKeyConstraint("id"),
+            sa.UniqueConstraint("date", "metric_name", name="uq_daily_metrics_date_name"),
+        )
+        op.create_index(
+            "ix_daily_metrics_name_date", "daily_metrics", ["metric_name", "date"]
+        )
+
+    if not _table_exists("alerts"):
+        op.create_table(
+            "alerts",
+            sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+            sa.Column("alert_type", sa.String(), nullable=False),
+            sa.Column(
+                "severity", sa.String(), nullable=False, server_default="warning"
+            ),
+            sa.Column("message", sa.Text(), nullable=False),
+            sa.Column("created_at", sa.DateTime(), nullable=False),
+            sa.Column("resolved_at", sa.DateTime(), nullable=True),
+            sa.PrimaryKeyConstraint("id"),
+            sa.CheckConstraint(
+                "severity IN ('info', 'warning', 'critical')",
+                name="ck_alerts_severity",
+            ),
+        )
+        op.create_index("ix_alerts_type_created", "alerts", ["alert_type", "created_at"])
 
 
 def downgrade() -> None:

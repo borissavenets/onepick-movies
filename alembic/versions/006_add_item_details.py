@@ -18,11 +18,20 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _has_column(table: str, column: str) -> bool:
+    conn = op.get_bind()
+    insp = sa.inspect(conn)
+    return any(c["name"] == column for c in insp.get_columns(table))
+
+
 def upgrade() -> None:
     with op.batch_alter_table("items") as batch_op:
-        batch_op.add_column(sa.Column("overview", sa.Text(), nullable=True))
-        batch_op.add_column(sa.Column("genres_json", sa.Text(), nullable=True))
-        batch_op.add_column(sa.Column("credits_json", sa.Text(), nullable=True))
+        if not _has_column("items", "overview"):
+            batch_op.add_column(sa.Column("overview", sa.Text(), nullable=True))
+        if not _has_column("items", "genres_json"):
+            batch_op.add_column(sa.Column("genres_json", sa.Text(), nullable=True))
+        if not _has_column("items", "credits_json"):
+            batch_op.add_column(sa.Column("credits_json", sa.Text(), nullable=True))
 
 
 def downgrade() -> None:
