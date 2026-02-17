@@ -154,11 +154,11 @@ async def get_recommendation(
     hint_text = answers.get("hint")
     hint_result = parse_hint(hint_text)
 
-    # LLM-translate UA hint to EN keywords for TMDB matching
+    # LLM keywords for overview/genres/credits matching
     if hint_text:
-        en_keywords = await translate_hint_keywords(hint_text)
-        if en_keywords:
-            hint_result.search_words.extend(en_keywords)
+        llm_keywords = await translate_hint_keywords(hint_text)
+        if llm_keywords:
+            hint_result.llm_keywords = llm_keywords
 
     if hint_result.overrides:
         answers = {**answers, **hint_result.overrides}

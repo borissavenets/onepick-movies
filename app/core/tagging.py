@@ -376,7 +376,8 @@ class HintResult:
 
     overrides: dict[str, str]  # state/pace/format overrides
     tone_keywords: set[str]  # tone tags to boost
-    search_words: list[str]  # raw words for title matching
+    search_words: list[str]  # raw UA words for title matching
+    llm_keywords: list[str]  # LLM keywords for overview/genres/credits
 
 
 def parse_hint(hint: str | None) -> HintResult:
@@ -389,7 +390,7 @@ def parse_hint(hint: str | None) -> HintResult:
         HintResult with overrides, tone keywords, and search words
     """
     if not hint or not hint.strip():
-        return HintResult(overrides={}, tone_keywords=set(), search_words=[])
+        return HintResult(overrides={}, tone_keywords=set(), search_words=[], llm_keywords=[])
 
     text = hint.lower().strip()
     words = text.split()
@@ -425,7 +426,8 @@ def parse_hint(hint: str | None) -> HintResult:
     search_words = [w for w in words if len(w) >= 3 and w not in stop_words]
 
     return HintResult(
-        overrides=overrides, tone_keywords=tone_keywords, search_words=search_words
+        overrides=overrides, tone_keywords=tone_keywords,
+        search_words=search_words, llm_keywords=[],
     )
 
 
@@ -483,14 +485,15 @@ def hint_match_score(
     Returns:
         Bonus score (0.0 to 8.0)
     """
-    if not hint_result.search_words and not hint_result.tone_keywords:
+    all_words = hint_result.search_words + hint_result.llm_keywords
+    if not all_words and not hint_result.tone_keywords:
         return 0.0
 
     score = 0.0
     title_lower = item_title.lower()
 
-    # Title keyword match (+3.0 per match, priority)
-    for word in hint_result.search_words:
+    # Title keyword match (+3.0 per match) - UA words + LLM keywords
+    for word in all_words:
         if word in title_lower:
             score += 3.0
 
@@ -501,28 +504,33 @@ def hint_match_score(
             if tone in item_tones:
                 score += 1.5
 
+    # Below: only LLM keywords (proper word forms for both UA and EN)
+    llm_words = hint_result.llm_keywords
+    if not llm_words:
+        return min(score, 8.0)
+
     # Overview keyword match (+1.0 per word)
-    if overview and hint_result.search_words:
+    if overview:
         overview_lower = overview.lower()
-        for word in hint_result.search_words:
+        for word in llm_words:
             if word in overview_lower:
                 score += 1.0
 
     # Genre keyword match (+2.0 per word)
-    if genres_json and hint_result.search_words:
+    if genres_json:
         try:
             genres_lower = genres_json.lower()
-            for word in hint_result.search_words:
+            for word in llm_words:
                 if word in genres_lower:
                     score += 2.0
         except (json.JSONDecodeError, TypeError):
             pass
 
     # Credits keyword match (+3.0 per word)
-    if credits_json and hint_result.search_words:
+    if credits_json:
         try:
             credits_lower = credits_json.lower()
-            for word in hint_result.search_words:
+            for word in llm_words:
                 if word in credits_lower:
                     score += 3.0
         except (json.JSONDecodeError, TypeError):
