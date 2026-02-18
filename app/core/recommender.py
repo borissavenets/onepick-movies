@@ -248,12 +248,15 @@ async def get_recommendation(
     rationale = generate_rationale(rec_id, effective_answers, selected.tags)
     when_to_watch = generate_when_to_watch(rec_id, effective_answers)
     hint_rationale = None
-    if hint_text and selected.hint_bonus > 0:
-        hint_rationale = await generate_hint_rationale(
-            hint_text,
-            selected.item.title,
-            getattr(selected.item, "overview", None),
-        )
+    if hint_text:
+        if selected.hint_bonus > 0:
+            hint_rationale = await generate_hint_rationale(
+                hint_text,
+                selected.item.title,
+                getattr(selected.item, "overview", None),
+            )
+        else:
+            hint_rationale = "За твоїм запитом точного збігу не знайшлось — але ось що пасує під твій настрій."
 
     # Log recommendation created
     await events_repo.log_event(
