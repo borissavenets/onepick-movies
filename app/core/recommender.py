@@ -60,6 +60,7 @@ class ScoredCandidate:
     match_score: float
     weight_bonus: float
     novelty_bonus: float
+    hint_bonus: float = 0.0
 
 
 def _deterministic_seed(user_id: str, mode: str, salt: str = "") -> int:
@@ -448,8 +449,12 @@ async def _score_candidates(
                 credits_json=getattr(item, "credits_json", None),
             )
 
+        # When hint is active, items with any hint match get a large boost
+        # so they always rank above items with no hint match
+        hint_priority = 10.0 if (hint_result and hint_result.llm_keywords and h_bonus > 0) else 0.0
+
         # Total score
-        total = item.base_score + m_score + w_bonus + n_bonus + h_bonus
+        total = item.base_score + m_score + w_bonus + n_bonus + h_bonus + hint_priority
 
         scored.append(
             ScoredCandidate(
@@ -459,6 +464,7 @@ async def _score_candidates(
                 match_score=m_score,
                 weight_bonus=w_bonus,
                 novelty_bonus=n_bonus,
+                hint_bonus=h_bonus,
             )
         )
 

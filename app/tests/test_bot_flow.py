@@ -352,11 +352,12 @@ def test_kb_recommendation():
     ]
 
     # Check all actions present
-    assert any("a:hit" in c for c in callbacks)
-    assert any("a:another" in c for c in callbacks)
-    assert any("a:miss" in c for c in callbacks)
-    assert any("a:fav" in c for c in callbacks)
-    assert any("a:share" in c for c in callbacks)
+    callbacks_non_null = [c for c in callbacks if c]
+    assert any("a:hit" in c for c in callbacks_non_null)
+    assert any("a:another" in c for c in callbacks_non_null)
+    assert any("n:pick" in c for c in callbacks_non_null)
+    assert any("a:fav" in c for c in callbacks_non_null)
+    assert any("a:seen" in c for c in callbacks_non_null)
 
     # Check rec_id is truncated
     assert any("abc12345" in c for c in callbacks)
