@@ -248,7 +248,7 @@ async def get_recommendation(
     rationale = generate_rationale(rec_id, effective_answers, selected.tags)
     when_to_watch = generate_when_to_watch(rec_id, effective_answers)
     hint_rationale = None
-    if hint_text:
+    if hint_text and selected.hint_bonus > 0:
         hint_rationale = await generate_hint_rationale(
             hint_text,
             selected.item.title,
