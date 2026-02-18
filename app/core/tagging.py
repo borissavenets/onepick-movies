@@ -472,13 +472,11 @@ async def translate_hint_keywords(hint_text: str) -> list[str]:
 
         response = await generate_text(
             system_prompt=(
-                "Extract specific content keywords from a Ukrainian movie/series request. "
-                "Return keywords in BOTH Ukrainian and English, comma-separated. "
-                "Include: subjects, characters, settings, themes, actor/director names, synonyms. "
-                "Do NOT include genre labels (comedy, drama, animation, family, thriller, etc.) "
-                "unless the user explicitly named a genre. "
-                "For each concept add all common Ukrainian synonyms (e.g. for doctors: "
-                "лікарі, медики, лікарня, медицина). "
+                "Extract the most specific content keywords from a Ukrainian movie/series request. "
+                "Return at most 8 keywords in BOTH Ukrainian and English, comma-separated. "
+                "Include ONLY: main subjects, characters, actor/director names, specific settings. "
+                "Do NOT include: genre labels, emotions, abstract themes, common words. "
+                "Example: 'про лікарів' -> 'лікарі, лікар, медики, doctors, doctor, hospital, лікарня'. "
                 "Return ONLY comma-separated keywords, nothing else."
             ),
             user_prompt=hint_text.strip(),
