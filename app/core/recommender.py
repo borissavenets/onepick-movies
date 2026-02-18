@@ -449,9 +449,9 @@ async def _score_candidates(
                 credits_json=getattr(item, "credits_json", None),
             )
 
-        # When hint is active, items with any hint match get a large boost
-        # so they always rank above items with no hint match
-        hint_priority = 10.0 if (hint_result and hint_result.llm_keywords and h_bonus > 0) else 0.0
+        # Proportional boost: more hint-relevant items rank higher
+        # also ensures hint-matching items rank above non-matching ones
+        hint_priority = h_bonus * 2.0 if (hint_result and hint_result.llm_keywords and h_bonus > 0) else 0.0
 
         # Total score
         total = item.base_score + m_score + w_bonus + n_bonus + h_bonus + hint_priority
