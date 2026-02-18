@@ -48,6 +48,7 @@ def recommendation_message(
     rationale: str,
     when_to_watch: str,
     rating: float | None = None,
+    hint_rationale: str | None = None,
 ) -> str:
     """Recommendation card message.
 
@@ -63,9 +64,11 @@ def recommendation_message(
     rating_str = f"⭐ {rating:.1f}" if rating else ""
     title_line = f"<b>{title}</b>  {rating_str}" if rating_str else f"<b>{title}</b>"
 
+    body = f"{hint_rationale}\n{rationale}" if hint_rationale else rationale
+
     return (
         f"{title_line}\n\n"
-        f"{rationale}\n\n"
+        f"{body}\n\n"
         f"<i>{when_to_watch}</i>"
     )
 

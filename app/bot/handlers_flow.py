@@ -371,6 +371,7 @@ async def _get_and_send_recommendation(
         rationale=rationale,
         when_to_watch=when_to_watch,
         rating=result.rating,
+        hint_rationale=result.hint_rationale,
     )
 
     # Prepend delta explainer if present

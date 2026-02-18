@@ -14,6 +14,7 @@ from app.core.anti_repeat import get_excluded_item_ids
 from app.core.learning import calculate_weight_bonus, get_user_weight
 from app.core.rationale import (
     generate_delta_explainer,
+    generate_hint_rationale,
     generate_rationale,
     generate_when_to_watch,
 )
@@ -47,6 +48,7 @@ class RecommendationResult:
     poster_url: str | None = None
     rating: float | None = None
     delta_explainer: str | None = None
+    hint_rationale: str | None = None
     meta: dict[str, Any] = field(default_factory=dict)
 
 
@@ -245,6 +247,13 @@ async def get_recommendation(
     # Generate rationale and when_to_watch
     rationale = generate_rationale(rec_id, effective_answers, selected.tags)
     when_to_watch = generate_when_to_watch(rec_id, effective_answers)
+    hint_rationale = None
+    if hint_text:
+        hint_rationale = await generate_hint_rationale(
+            hint_text,
+            selected.item.title,
+            getattr(selected.item, "overview", None),
+        )
 
     # Log recommendation created
     await events_repo.log_event(
@@ -280,6 +289,7 @@ async def get_recommendation(
         poster_url=getattr(selected.item, "poster_url", None),
         rating=getattr(selected.item, "vote_average", None),
         delta_explainer=delta_explainer,
+        hint_rationale=hint_rationale,
         meta={
             "mode": mode,
             "item_type": item_type,

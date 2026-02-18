@@ -207,6 +207,7 @@ async def handle_another(callback: CallbackQuery) -> None:
         rationale=result.rationale,
         when_to_watch=result.when_to_watch,
         rating=result.rating,
+        hint_rationale=result.hint_rationale,
     )
 
     # Prepend delta explainer if present
@@ -381,6 +382,7 @@ async def handle_miss_reason(callback: CallbackQuery) -> None:
         rationale=result.rationale,
         when_to_watch=result.when_to_watch,
         rating=result.rating,
+        hint_rationale=result.hint_rationale,
     )
 
     if result.poster_url:
@@ -505,6 +507,7 @@ async def handle_seen(callback: CallbackQuery) -> None:
         rationale=result.rationale,
         when_to_watch=result.when_to_watch,
         rating=result.rating,
+        hint_rationale=result.hint_rationale,
     )
 
     if result.poster_url:

@@ -294,6 +294,46 @@ def generate_delta_explainer(
     return template
 
 
+async def generate_hint_rationale(
+    hint_text: str,
+    item_title: str,
+    overview: str | None,
+) -> str | None:
+    """Generate one-sentence LLM explanation why item matches the hint.
+
+    Returns None on any error (caller falls back to template-only).
+    """
+    if not hint_text or not overview:
+        return None
+
+    try:
+        from app.llm.llm_adapter import LLMDisabledError, OpenAIError, generate_text
+
+        response = await generate_text(
+            system_prompt=(
+                "You are a movie/series recommendation assistant. "
+                "In ONE short sentence in Ukrainian (max 120 chars), explain why the film/series "
+                "matches the user's request. Be specific and concrete. No spoilers."
+            ),
+            user_prompt=(
+                f"User request: {hint_text}\n"
+                f"Film/series: {item_title}\n"
+                f"Description: {overview[:600]}"
+            ),
+            max_tokens=80,
+            temperature=0.3,
+        )
+        text = response.strip()
+        if _contains_spoiler(text):
+            return None
+        return _sanitize_text(text, max_length=150)
+
+    except (LLMDisabledError, OpenAIError):
+        return None
+    except Exception:
+        return None
+
+
 def validate_rationale(rationale: str) -> tuple[bool, str | None]:
     """Validate rationale meets requirements.
 
