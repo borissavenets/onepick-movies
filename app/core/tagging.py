@@ -370,6 +370,30 @@ HINT_PACE_KEYWORDS: dict[str, str] = {
 }
 
 
+# UA word -> TMDB EN genre name (lowercase) for genres_json matching
+UA_TO_GENRE: dict[str, str] = {
+    "пригоди": "adventure", "пригодницьке": "adventure", "пригодницький": "adventure",
+    "бойовик": "action", "екшн": "action",
+    "анімація": "animation", "мультфільм": "animation", "мультик": "animation", "аніме": "animation",
+    "комедія": "comedy",
+    "кримінал": "crime", "детектив": "crime",
+    "документальне": "documentary", "документалка": "documentary",
+    "драма": "drama",
+    "сімейне": "family", "сімейний": "family",
+    "фентезі": "fantasy",
+    "історичне": "history", "historical": "history",
+    "жахи": "horror", "хорор": "horror",
+    "мюзикл": "music",
+    "містика": "mystery",
+    "романтика": "romance",
+    "фантастика": "science fiction",
+    "трилер": "thriller",
+    "війна": "war", "воєнне": "war",
+    "вестерн": "western",
+    "дитяче": "kids",
+}
+
+
 @dataclass
 class HintResult:
     """Parsed hint data."""
@@ -377,7 +401,8 @@ class HintResult:
     overrides: dict[str, str]  # state/pace/format overrides
     tone_keywords: set[str]  # tone tags to boost
     search_words: list[str]  # raw UA words for title matching
-    llm_keywords: list[str]  # LLM keywords for overview/genres/credits
+    llm_keywords: list[str]  # LLM keywords for overview/credits (not genres)
+    genre_words: list[str]  # EN genre names for genres_json matching
 
 
 def parse_hint(hint: str | None) -> HintResult:
@@ -390,7 +415,7 @@ def parse_hint(hint: str | None) -> HintResult:
         HintResult with overrides, tone keywords, and search words
     """
     if not hint or not hint.strip():
-        return HintResult(overrides={}, tone_keywords=set(), search_words=[], llm_keywords=[])
+        return HintResult(overrides={}, tone_keywords=set(), search_words=[], llm_keywords=[], genre_words=[])
 
     text = hint.lower().strip()
     words = text.split()
@@ -412,6 +437,9 @@ def parse_hint(hint: str | None) -> HintResult:
             overrides.update(genre_overrides)
             tone_keywords.update(tones)
 
+    # Extract genre_words from direct UA->EN mapping
+    genre_words = list({UA_TO_GENRE[w] for w in words if w in UA_TO_GENRE})
+
     # Extract meaningful search words (skip short/common words)
     stop_words = {
         "щось", "як", "на", "з", "із", "та", "і", "або", "чи",
@@ -427,7 +455,7 @@ def parse_hint(hint: str | None) -> HintResult:
 
     return HintResult(
         overrides=overrides, tone_keywords=tone_keywords,
-        search_words=search_words, llm_keywords=[],
+        search_words=search_words, llm_keywords=[], genre_words=genre_words,
     )
 
 
@@ -444,9 +472,11 @@ async def translate_hint_keywords(hint_text: str) -> list[str]:
 
         response = await generate_text(
             system_prompt=(
-                "Extract search keywords from a Ukrainian movie/series request. "
+                "Extract specific content keywords from a Ukrainian movie/series request. "
                 "Return keywords in BOTH Ukrainian and English, comma-separated. "
-                "Include: actor/director names, genres, themes, settings, synonyms. "
+                "Include: subjects, characters, settings, themes, actor/director names, synonyms. "
+                "Do NOT include genre labels (comedy, drama, animation, family, thriller, etc.) "
+                "unless the user explicitly named a genre. "
                 "For each concept add all common Ukrainian synonyms (e.g. for doctors: "
                 "лікарі, медики, лікарня, медицина). "
                 "Return ONLY comma-separated keywords, nothing else."
@@ -518,12 +548,12 @@ def hint_match_score(
             if word in overview_lower:
                 score += 2.0
 
-    # Genre keyword match (+2.0 per word)
-    if genres_json:
+    # Genre match via direct UA->EN mapping (+2.0 per match)
+    if genres_json and hint_result.genre_words:
         try:
             genres_lower = genres_json.lower()
-            for word in llm_words:
-                if word in genres_lower:
+            for genre in hint_result.genre_words:
+                if genre in genres_lower:
                     score += 2.0
         except (json.JSONDecodeError, TypeError):
             pass

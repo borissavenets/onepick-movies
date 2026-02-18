@@ -162,7 +162,8 @@ async def get_recommendation(
             hint_result.llm_keywords = llm_keywords
         logger.info(
             f"Hint: '{hint_text}' -> search_words={hint_result.search_words}, "
-            f"llm_keywords={hint_result.llm_keywords}, overrides={hint_result.overrides}"
+            f"genre_words={hint_result.genre_words}, llm_keywords={hint_result.llm_keywords}, "
+            f"overrides={hint_result.overrides}"
         )
 
     if hint_result.overrides:
