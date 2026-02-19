@@ -472,7 +472,8 @@ async def translate_hint_keywords(hint_text: str) -> list[str]:
 
         response = await generate_text(
             system_prompt=(
-                "Extract the most specific content keywords from a Ukrainian movie/series request. "
+                "Extract the most specific content keywords from a movie/series request. "
+                "Input can be in any language (Ukrainian, Russian, English, etc.). "
                 "Return at most 8 keywords in BOTH Ukrainian and English, comma-separated. "
                 "Include ONLY: main subjects, characters, actor/director names, specific settings. "
                 "Do NOT include: genre labels, emotions, abstract themes, common words. "
