@@ -61,21 +61,30 @@ async def _avg_scores_by_format(session, days: int = 14) -> dict[str, float]:
     return {row[0]: float(row[1]) for row in result.all()}
 
 
+_ADJACENT_BLOCKED: dict[str, set[str]] = {
+    "bot_teaser": {"poll"},
+    "poll": {"bot_teaser"},
+}
+
+
 async def _pick_format_bandit(session, last_format: str | None = None) -> str:
     """70 % exploit best avg score, 30 % explore random other format.
 
-    Avoids picking the same format as the previous post.
+    Avoids repeating the same format and blocks bot_teaser<->poll adjacency.
     """
     scores = await _avg_scores_by_format(session)
 
-    available = [f for f in ALL_FORMATS if f != last_format] if last_format else ALL_FORMATS
+    blocked = ({last_format} | _ADJACENT_BLOCKED.get(last_format, set())) if last_format else set()
+    available = [f for f in ALL_FORMATS if f not in blocked]
+    if not available:
+        available = ALL_FORMATS  # fallback: ignore constraints if nothing left
 
     if not scores:
         return random.choice(available)
 
     if random.random() < EXPLOIT_RATE:
         best = max(scores, key=scores.get)  # type: ignore[arg-type]
-        return best if best != last_format else random.choice(available)
+        return best if best not in blocked else random.choice(available)
 
     # Explore: pick from formats that are NOT the current best
     best = max(scores, key=scores.get)  # type: ignore[arg-type]
