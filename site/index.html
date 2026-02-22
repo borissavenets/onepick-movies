@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="uk" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OnePick Movies - персональні рекомендації фільмів</title>
+  <meta name="description" content="Telegram-бот, що підбирає фільми та серіали під твій настрій. Безкоштовно, без реєстрації.">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="OnePick Movies - фільм під настрій за 30 секунд">
+  <meta property="og:description" content="Telegram-бот підбере ідеальний фільм за настроєм. Безкоштовно, без реєстрації.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://borissavenets.github.io/onepick-movies">
+  <meta property="og:image" content="https://borissavenets.github.io/onepick-movies/og-image.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="OnePick Movies - фільм під настрій за 30 секунд">
+  <meta name="twitter:description" content="Telegram-бот підбере ідеальний фільм за настроєм. Безкоштовно.">
+  <meta name="twitter:image" content="https://borissavenets.github.io/onepick-movies/og-image.png">
+
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- GA4: replace G-XXXXXXXXXX with your ID -->
+  <!--
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-XXXXXXXXXX');
+  </script>
+  -->
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="container header__inner">
+      <a href="/" class="header__logo">OnePick Movies</a>
+      <div class="header__right">
+        <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme"></button>
+        <a href="https://t.me/onepick_movies_bot?start=ref_site_header" class="btn btn--sm" target="_blank" rel="noopener">
+          Запустити бота
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container hero__inner">
+      <h1 class="hero__title">Фільм під настрій за 30 секунд</h1>
+      <p class="hero__subtitle">
+        Telegram-бот запитає 3 питання і підкине ідеальний фільм або серіал.
+        Без нескінченного гортання каталогів.
+      </p>
+      <!-- Demo widget -->
+      <div class="demo" id="demo">
+        <p class="demo__prompt">Який настрій сьогодні?</p>
+        <div class="demo__buttons">
+          <button class="demo__btn" data-mood="comedy"><span class="demo__btn-emoji">&#x1F602;</span> Посміятись</button>
+          <button class="demo__btn" data-mood="thriller"><span class="demo__btn-emoji">&#x1F525;</span> Потрилерити</button>
+          <button class="demo__btn" data-mood="romance"><span class="demo__btn-emoji">&#x1F496;</span> Романтика</button>
+          <button class="demo__btn" data-mood="random"><span class="demo__btn-emoji">&#x1F3B2;</span> Здивуй мене</button>
+        </div>
+        <div class="demo__result" id="demoResult"></div>
+      </div>
+      <div class="social-proof">
+        <div class="live-feed" id="liveFeed"></div>
+        <div class="live-counter">Сьогодні підібрано: <span id="liveCounter">0</span> фільмів</div>
+      </div>
+      <p class="hero__trust">Безкоштовно, без реєстрації, потрібен лише Telegram</p>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="steps fade-in" id="how-it-works">
+    <div class="container">
+      <h2 class="section-title">Як це працює</h2>
+      <div class="steps__grid">
+        <div class="step">
+          <span class="step__number">1</span>
+          <h3 class="step__title">Відкриваєш бота</h3>
+          <p class="step__text">Тиснеш "Start" в Telegram - і все, ти вже всередині.</p>
+        </div>
+        <div class="step">
+          <span class="step__number">2</span>
+          <h3 class="step__title">Відповідаєш на 3 питання</h3>
+          <p class="step__text">Настрій, темп, формат - бот підлаштує підбір під тебе.</p>
+        </div>
+        <div class="step">
+          <span class="step__number">3</span>
+          <h3 class="step__title">Отримуєш рекомендацію</h3>
+          <p class="step__text">Один фільм або серіал з коротким поясненням, чому саме він.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Examples -->
+  <section class="examples fade-in" id="examples">
+    <div class="container">
+      <h2 class="section-title">Приклади рекомендацій</h2>
+      <div class="examples__grid">
+        <div class="card">
+          <div class="card__mood">Настрій: легкий</div>
+          <div class="card__title">The Grand Budapest Hotel</div>
+          <div class="card__meta">Комедія / 2014</div>
+          <p class="card__text">
+            Візуально розкішний фільм з гумором Веса Андерсона.
+            Ідеально для вечорів, коли хочеться чогось легкого й стильного.
+          </p>
+        </div>
+        <div class="card">
+          <div class="card__mood">Настрій: глибокий</div>
+          <div class="card__title">Sicario</div>
+          <div class="card__meta">Трилер / 2015</div>
+          <p class="card__text">
+            Напружений трилер про військові операції на кордоні.
+            Тримає в напрузі від першої до останньої хвилини.
+          </p>
+        </div>
+        <div class="card">
+          <div class="card__mood">Настрій: втечі</div>
+          <div class="card__title">The Secret Life of Walter Mitty</div>
+          <div class="card__meta">Пригоди / 2013</div>
+          <p class="card__text">
+            Подорож з дивана на край світу. Фільм про те, що життя
+            починається там, де закінчується зона комфорту.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="faq fade-in" id="faq">
+    <div class="container">
+      <h2 class="section-title">Часті питання</h2>
+      <div class="faq__list">
+        <details class="faq__item">
+          <summary class="faq__question">Це безкоштовно?</summary>
+          <p class="faq__answer">
+            Так, повністю безкоштовно. Бот працює без підписок, пробів чи прихованих платежів.
+          </p>
+        </details>
+        <details class="faq__item">
+          <summary class="faq__question">Потрібна реєстрація?</summary>
+          <p class="faq__answer">
+            Ні. Потрібно лише мати Telegram. Тиснеш "Start" - і бот готовий до роботи.
+            Жодних форм, паролів чи email.
+          </p>
+        </details>
+        <details class="faq__item">
+          <summary class="faq__question">Звідки бот знає, що мені сподобається?</summary>
+          <p class="faq__answer">
+            Бот ставить 3 коротких питання про твій настрій, бажаний темп і формат.
+            Потім шукає в базі 10 000+ фільмів (TMDB) і враховує твої попередні оцінки,
+            щоб кожного разу бути точнішим.
+          </p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section class="cta fade-in" id="final-cta">
+    <div class="container cta__inner">
+      <h2 class="cta__title">Готовий спробувати?</h2>
+      <p class="cta__subtitle">Першу рекомендацію отримаєш за 30 секунд</p>
+      <div class="cta__buttons">
+        <a href="https://t.me/onepick_movies_bot?start=ref_site_footer" class="btn btn--lg" target="_blank" rel="noopener">
+          Запустити бота
+        </a>
+        <a href="https://t.me/OnePickMovies" class="btn btn--outline btn--lg" target="_blank" rel="noopener">
+          Канал з рекомендаціями
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer__inner">
+      <span class="footer__copy">OnePick Movies 2025</span>
+      <a href="https://t.me/OnePickMovies" class="footer__link" target="_blank" rel="noopener">Telegram-канал</a>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
