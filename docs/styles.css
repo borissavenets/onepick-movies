@@ -219,7 +219,8 @@ a {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 2rem;
+  padding: 1.25rem;
+  overflow: hidden;
   box-shadow: 0 0 40px var(--glow-color), 0 0 80px var(--glow-color);
   transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
 }
