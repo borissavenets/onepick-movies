@@ -1,4 +1,4 @@
-"""SQLAlchemy ORM models for FramePick."""
+"""SQLAlchemy ORM models for OnePick Movies."""
 
 from datetime import datetime
 from typing import Optional

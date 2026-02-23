@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 # Set test environment before imports
 os.environ["BOT_TOKEN"] = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
 os.environ["BOT_MODE"] = "polling"
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test_framepick.db"
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test_onepick.db"
 os.environ["RECS_EPSILON"] = "0.30"
 os.environ["RECS_ANTI_REPEAT_DAYS"] = "90"
 

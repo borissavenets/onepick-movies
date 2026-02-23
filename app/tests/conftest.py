@@ -6,7 +6,7 @@ import os
 # Use valid-format token to pass aiogram validation
 os.environ["BOT_TOKEN"] = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
 os.environ["BOT_MODE"] = "polling"
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test_framepick.db"
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test_onepick.db"
 
 import pytest
 

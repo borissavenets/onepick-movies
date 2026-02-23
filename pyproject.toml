@@ -1,5 +1,5 @@
 [project]
-name = "framepick"
+name = "onepick"
 version = "0.1.0"
 description = "Telegram bot for content curation and channel posting"
 requires-python = ">=3.12"

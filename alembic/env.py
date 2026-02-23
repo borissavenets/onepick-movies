@@ -18,7 +18,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-database_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./framepick.db")
+database_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./onepick.db")
 config.set_main_option("sqlalchemy.url", database_url)
 
 # Import Base and all models directly (avoid app.storage.__init__ which imports config)

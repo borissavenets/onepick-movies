@@ -1,1 +1,1 @@
-"""FramePick Telegram Bot Application."""
+"""OnePick Movies Telegram Bot Application."""

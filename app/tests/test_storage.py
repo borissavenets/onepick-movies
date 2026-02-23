@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 # Set test environment before imports (use valid-format token)
 os.environ["BOT_TOKEN"] = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
 os.environ["BOT_MODE"] = "polling"
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test_framepick.db"
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test_onepick.db"
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -27,7 +27,7 @@ from app.storage import (
 async def engine():
     """Create test database engine."""
     engine = create_async_engine(
-        "sqlite+aiosqlite:///./test_framepick.db",
+        "sqlite+aiosqlite:///./test_onepick.db",
         echo=False,
     )
 
@@ -43,8 +43,8 @@ async def engine():
 
     # Cleanup test database file
     import os
-    if os.path.exists("./test_framepick.db"):
-        os.remove("./test_framepick.db")
+    if os.path.exists("./test_onepick.db"):
+        os.remove("./test_onepick.db")
 
 
 @pytest.fixture

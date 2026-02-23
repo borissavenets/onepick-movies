@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-FramePick - Telegram bot + channel for movie/series recommendations in Ukrainian.
+OnePick Movies - Telegram bot + channel for movie/series recommendations in Ukrainian.
 Stack: FastAPI + aiogram v3 + SQLAlchemy 2.0 async + SQLite (aiosqlite) + APScheduler.
 
 ## Commands
@@ -74,7 +74,7 @@ Callback data encodes previous answers: `f:movie|light|slow` carries state+pace 
 ## Testing
 
 - pytest-asyncio with `asyncio_mode = "auto"`
-- Test DB: `sqlite+aiosqlite:///./test_framepick.db` (via conftest.py)
+- Test DB: `sqlite+aiosqlite:///./test_onepick.db` (via conftest.py)
 - 3 known failing tests in test_bot_flow, test_credits, test_recommender (UA text assertion mismatches)
 
 ## Style

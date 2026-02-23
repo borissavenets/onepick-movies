@@ -638,7 +638,7 @@ async def handle_share(callback: CallbackQuery) -> None:
 
     # Get bot username
     bot_info = await callback.bot.get_me()
-    bot_username = bot_info.username or "framepick_bot"
+    bot_username = bot_info.username or "onepick_movies_bot"
 
     # Send shareable snippet
     await safe_send_message(

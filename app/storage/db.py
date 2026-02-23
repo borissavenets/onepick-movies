@@ -27,7 +27,7 @@ def _get_database_url() -> str:
         from app.config import config
         return config.database_url
     except Exception:
-        return "sqlite+aiosqlite:///./framepick.db"
+        return "sqlite+aiosqlite:///./onepick.db"
 
 
 def _get_log_level() -> str:

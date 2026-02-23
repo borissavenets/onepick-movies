@@ -1,1 +1,1 @@
-"""Test suite for FramePick application."""
+"""Test suite for OnePick Movies application."""

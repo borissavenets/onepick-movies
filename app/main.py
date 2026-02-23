@@ -96,7 +96,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 app = FastAPI(
-    title="FramePick Bot",
+    title="OnePick Movies Bot",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -474,7 +474,7 @@ _DASHBOARD_HTML = """\
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FramePick — Панель керування</title>
+<title>OnePick Movies — Панель керування</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#0f1117;--surface:#1a1d27;--surface2:#242733;--border:#2e3140;
@@ -529,7 +529,7 @@ table{font-size:.75rem}th,td{padding:6px 8px}}
 <body>
 <div class="header">
  <div class="header-left">
-  <h1>FramePick</h1>
+  <h1>OnePick Movies</h1>
   <span class="status"><span class="dot"></span>Панель керування</span>
  </div>
  <div>

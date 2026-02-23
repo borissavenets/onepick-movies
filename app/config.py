@@ -106,7 +106,7 @@ class Config:
         except ValueError:
             raise ConfigurationError(f"PORT must be an integer, got: {port_str}")
 
-        database_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./framepick.db")
+        database_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./onepick.db")
         admin_token = os.getenv("ADMIN_TOKEN") or None
         log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 
@@ -189,7 +189,7 @@ class Config:
         llm_provider = os.getenv("LLM_PROVIDER", "anthropic" if anthropic_api_key else "openai")
 
         # Channel settings
-        channel_username = os.getenv("CHANNEL_USERNAME", "FramePickUA")
+        channel_username = os.getenv("CHANNEL_USERNAME", "OnePickMovies")
         bot_username = os.getenv("BOT_USERNAME", "onepick_movies_bot")
 
         cta_rate_str = os.getenv("CTA_RATE", "0.70")

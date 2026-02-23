@@ -1,4 +1,4 @@
-# FramePick
+# OnePick Movies
 
 Telegram bot for content curation and channel posting.
 
@@ -17,7 +17,7 @@ Telegram bot for content curation and channel posting.
 ### 1. Create Virtual Environment
 
 ```bash
-cd framepick
+cd onepick
 python -m venv .venv
 
 # Windows
@@ -109,7 +109,7 @@ The server will:
 ## Project Structure
 
 ```
-framepick/
+onepick/
 ├── app/
 │   ├── main.py              # Application entrypoint
 │   ├── config.py            # Configuration from env vars
@@ -183,7 +183,7 @@ Each table has a corresponding async repository:
 | `WEBHOOK_PATH` | No | `/telegram/webhook` | Webhook endpoint path |
 | `HOST` | No | `0.0.0.0` | Server bind address |
 | `PORT` | No | `8000` | Server port |
-| `DATABASE_URL` | No | `sqlite+aiosqlite:///./framepick.db` | Database connection URL |
+| `DATABASE_URL` | No | `sqlite+aiosqlite:///./onepick.db` | Database connection URL |
 | `ADMIN_TOKEN` | No | - | Admin authentication token |
 | `LOG_LEVEL` | No | `INFO` | Logging level |
 
