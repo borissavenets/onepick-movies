@@ -124,13 +124,20 @@ a {
 .header__right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .header__logo {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 800;
   letter-spacing: -0.5px;
+  white-space: nowrap;
+}
+
+.header__right .btn--sm {
+  white-space: nowrap;
+  padding: 8px 14px;
+  font-size: 0.8rem;
 }
 
 /* === Theme toggle === */
@@ -523,6 +530,19 @@ details[open] .faq__question::after {
 
 /* === Desktop === */
 @media (min-width: 768px) {
+  .header__logo {
+    font-size: 1.25rem;
+  }
+
+  .header__right {
+    gap: 12px;
+  }
+
+  .header__right .btn--sm {
+    padding: 8px 18px;
+    font-size: 0.875rem;
+  }
+
   .hero {
     padding: 6rem 0 4rem;
   }
